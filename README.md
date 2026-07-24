@@ -127,7 +127,7 @@ You can also use environment variables:
 - **orientation**: Screen orientation - `portrait`, `landscape-right` (default), `landscape-left`, or `inverted`
 - **screen**: Screen to map the pen to - a screen index, a name (see `rm-pad screens`), or `all` to span every screen. Defaults to the primary screen when multiple are connected.
 
-> **Note:** screen mapping uses [display-info](https://crates.io/crates/display-info) for monitor geometry. On Wayland compositors that report scaled or rotated outputs with coordinates that differ from their logical layout (e.g. Hyprland with a fractional-scaled or rotated monitor), the pen may land off from the intended screen. Uniform-scale, non-rotated setups map correctly. Use `--screen all` to fall back to the previous whole-desktop behavior.
+> **Note:** screen mapping uses [display-info](https://crates.io/crates/display-info) for monitor geometry, applying each display's `scale_factor` to recover the compositor's logical layout (so scaled/HiDPI monitors map correctly). Use `--screen all` to fall back to the whole-desktop behavior.
 
 All options can also be set via command-line flags. Run `rm-pad --help` for details.
 

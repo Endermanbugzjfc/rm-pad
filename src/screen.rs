@@ -5,13 +5,11 @@
 //! advertise axes covering the full desktop bounding box and remap incoming
 //! pen coordinates into the chosen display's rectangle.
 //!
-//! Accuracy depends on `display-info`'s monitor geometry matching the
-//! compositor's *logical* layout. That holds on uniform-scale, non-rotated
-//! setups. It can diverge on Wayland compositors that scale or rotate an
-//! output (e.g. Hyprland reports a fractional-scaled monitor with different
-//! coordinates than its logical layout), which shifts the mapping. In that
-//! case the pen can land off the intended screen; `--screen all` disables
-//! mapping and restores the whole-desktop behavior.
+//! `display-info` reports each display's geometry divided by its own scale,
+//! so scaled/HiDPI monitors come back smaller and mis-placed. [`logical_rect`]
+//! multiplies by `scale_factor` to recover the compositor's logical layout —
+//! the space the pen is actually mapped into. `--screen all` disables mapping
+//! and restores the whole-desktop behavior.
 
 use display_info::DisplayInfo;
 
@@ -141,23 +139,60 @@ fn display_names(displays: &[DisplayInfo]) -> String {
         .join(", ")
 }
 
+/// A display rectangle in the compositor's logical coordinate space.
+#[derive(Debug, Clone, Copy)]
+struct Rect {
+    x: i64,
+    y: i64,
+    w: i64,
+    h: i64,
+}
+
+/// Recover a display's logical rectangle from `display-info`.
+///
+/// `display-info` reports x/y/width/height divided by the display's own
+/// scale, so a fractional/HiDPI monitor comes back smaller and mis-placed
+/// (e.g. a 1600x1000-at-(0,1080) output is reported as 800x500-at-(0,540)).
+/// Multiplying by `scale_factor` restores the compositor's logical layout,
+/// which is the space the pen is mapped into.
+fn logical_rect(d: &DisplayInfo) -> Rect {
+    let s = if d.scale_factor > 0.0 { d.scale_factor as f64 } else { 1.0 };
+    Rect {
+        x: (d.x as f64 * s).round() as i64,
+        y: (d.y as f64 * s).round() as i64,
+        w: (d.width as f64 * s).round() as i64,
+        h: (d.height as f64 * s).round() as i64,
+    }
+}
+
 fn build_map(displays: &[DisplayInfo], target: &DisplayInfo) -> ScreenMap {
-    let min_x = displays.iter().map(|d| d.x as i64).min().unwrap();
-    let min_y = displays.iter().map(|d| d.y as i64).min().unwrap();
-    let max_x = displays.iter().map(|d| d.x as i64 + d.width as i64).max().unwrap();
-    let max_y = displays.iter().map(|d| d.y as i64 + d.height as i64).max().unwrap();
+    let rects: Vec<Rect> = displays.iter().map(logical_rect).collect();
+    let target_rect = logical_rect(target);
+    let label = format!(
+        "{} ({}x{} at {},{})",
+        target.name, target_rect.w, target_rect.h, target_rect.x, target_rect.y
+    );
+    compute_map(&rects, &target_rect, label)
+}
+
+/// Build the pen-to-display mapping from logical display rectangles.
+///
+/// Pure geometry over the virtual-desktop bounding box, split out so it can
+/// be tested without a live display connection.
+fn compute_map(all: &[Rect], target: &Rect, label: String) -> ScreenMap {
+    let min_x = all.iter().map(|r| r.x).min().unwrap();
+    let min_y = all.iter().map(|r| r.y).min().unwrap();
+    let max_x = all.iter().map(|r| r.x + r.w).max().unwrap();
+    let max_y = all.iter().map(|r| r.y + r.h).max().unwrap();
 
     ScreenMap {
         axis_x_max: ((max_x - min_x) * SCALE - 1) as i32,
         axis_y_max: ((max_y - min_y) * SCALE - 1) as i32,
-        target_x: (target.x as i64 - min_x) * SCALE,
-        target_y: (target.y as i64 - min_y) * SCALE,
-        target_w: target.width as i64 * SCALE,
-        target_h: target.height as i64 * SCALE,
-        label: format!(
-            "{} ({}x{} at {},{})",
-            target.name, target.width, target.height, target.x, target.y
-        ),
+        target_x: (target.x - min_x) * SCALE,
+        target_y: (target.y - min_y) * SCALE,
+        target_w: target.w * SCALE,
+        target_h: target.h * SCALE,
+        label,
     }
 }
 
@@ -176,15 +211,16 @@ pub fn print_displays() -> Result<(), Box<dyn std::error::Error + Send + Sync>> 
         } else {
             format!(" \"{}\"", d.friendly_name)
         };
+        let r = logical_rect(d);
         println!(
             "{}: {}{} — {}x{} at ({}, {}){}",
             index,
             d.name,
             friendly,
-            d.width,
-            d.height,
-            d.x,
-            d.y,
+            r.w,
+            r.h,
+            r.x,
+            r.y,
             if d.is_primary { " [primary]" } else { "" }
         );
     }
@@ -227,5 +263,33 @@ mod tests {
         let cy = 540 * SCALE as i32;
         assert!((x - cx).abs() <= SCALE as i32);
         assert!((y - cy).abs() <= SCALE as i32);
+    }
+
+    fn rect(x: i64, y: i64, w: i64, h: i64) -> Rect {
+        Rect { x, y, w, h }
+    }
+
+    #[test]
+    fn compute_map_uses_full_logical_bounding_box() {
+        // The real 3-monitor logical layout: DP-2 and HDMI side by side,
+        // plus a scaled monitor below that extends the desktop to 2080 tall.
+        let dp2 = rect(0, 0, 1920, 1080);
+        let hdmi = rect(1920, 0, 1920, 1080);
+        let dp3 = rect(0, 1080, 1600, 1000);
+        let all = [dp2, hdmi, dp3];
+
+        let map = compute_map(&all, &hdmi, "hdmi".into());
+
+        // Desktop bounding box is 3840x2080, not 3840x1080.
+        assert_eq!(map.axis_x_max, (3840 * SCALE - 1) as i32);
+        assert_eq!(map.axis_y_max, (2080 * SCALE - 1) as i32);
+
+        // Pen center must land at HDMI's center within the whole desktop:
+        // x = 2880/3840 = 0.75, y = 540/2080 ≈ 0.26 of the axis range.
+        let (x, y) = map.map(20966 / 2, 15725 / 2, 20966, 15725);
+        let frac_x = x as f64 / (map.axis_x_max as f64);
+        let frac_y = y as f64 / (map.axis_y_max as f64);
+        assert!((frac_x - 0.75).abs() < 0.01, "frac_x={frac_x}");
+        assert!((frac_y - 540.0 / 2080.0).abs() < 0.01, "frac_y={frac_y}");
     }
 }
