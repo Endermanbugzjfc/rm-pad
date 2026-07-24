@@ -5,6 +5,7 @@ mod grab;
 mod input;
 mod orientation;
 mod palm;
+mod screen;
 mod ssh;
 
 use std::sync::atomic::Ordering;
@@ -24,7 +25,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     
     init_logging(cli.command.is_some());
-    
+
+    // The screens subcommand is purely local, no SSH needed
+    if matches!(cli.command, Some(Command::Screens)) {
+        return screen::print_displays();
+    }
+
     // Detect device via SSH (required)
     let config_for_detection = Config::load(&cli, DeviceProfile::current());
     let session = ssh::connect_for_detection(&config_for_detection)?;
@@ -66,6 +72,8 @@ fn run_subcommand(
                 std::process::exit(1);
             }
         },
+        // Handled in main() before SSH detection
+        Command::Screens => Ok(()),
     }
 }
 
@@ -77,13 +85,14 @@ fn log_startup_info(config: &Config) {
     };
 
     log::info!(
-        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}",
+        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}, screen={}",
         config.host,
         if config.run_pen() { &config.pen_device } else { "off" },
         if config.run_touch() { &config.touch_device } else { "off" },
         palm_info,
         config.grab_input,
-        config.orientation
+        config.orientation,
+        config.screen.as_deref().unwrap_or("auto")
     );
 }
 

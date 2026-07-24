@@ -29,6 +29,7 @@ pub struct Config {
     pub no_palm_rejection: bool,
     pub palm_grace_ms: u64,
     pub orientation: Orientation,
+    pub screen: Option<String>,
 }
 
 impl Config {
@@ -66,6 +67,7 @@ impl Config {
                 .or(file_config.palm_grace_ms)
                 .unwrap_or(500),
             orientation: cli.orientation.unwrap_or(file_config.orientation),
+            screen: cli.screen.clone().or(file_config.screen),
         }
     }
 

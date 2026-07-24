@@ -10,3 +10,6 @@ host = "10.11.99.1"
 # no_palm_rejection = false
 # palm_grace_ms = 500
 # orientation = "landscape-right"
+# screen = "0"        # screen to map the pen to: index, name, or "all" to span
+                      # every screen; defaults to the primary screen when several
+                      # are connected. List screens with: rm-pad screens

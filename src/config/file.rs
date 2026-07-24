@@ -25,6 +25,7 @@ pub struct FileConfig {
     pub palm_grace_ms: Option<u64>,
     #[serde(default)]
     pub orientation: Orientation,
+    pub screen: Option<String>,
 }
 
 impl Default for FileConfig {
@@ -41,6 +42,7 @@ impl Default for FileConfig {
             no_palm_rejection: false,
             palm_grace_ms: None,
             orientation: Orientation::default(),
+            screen: None,
         }
     }
 }

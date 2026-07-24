@@ -59,6 +59,11 @@ pub struct Cli {
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
 
+    /// Screen to map the pen to: index, name, or "all" to span every screen
+    /// (default: primary screen when several are connected; see `screens` subcommand)
+    #[arg(long)]
+    pub screen: Option<String>,
+
     /// Path to config file
     #[arg(long, env = "RMPAD_CONFIG")]
     pub config: Option<PathBuf>,
@@ -71,4 +76,6 @@ pub enum Command {
         /// Device to dump: "touch" or "pen"
         device: String,
     },
+    /// List connected screens (for the --screen option)
+    Screens,
 }

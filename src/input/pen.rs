@@ -9,6 +9,7 @@ use crate::config::Config;
 use crate::device::DeviceProfile;
 use crate::orientation::Orientation;
 use crate::palm::SharedPalmState;
+use crate::screen::{self, ScreenMap};
 use crate::ssh;
 
 use super::event::{key_event, parse_input_event, ABS_PRESSURE, EV_ABS, EV_SYN, SYN_REPORT};
@@ -18,11 +19,31 @@ const ABS_Y: u16 = 0x01;
 const ABS_TILT_X: u16 = 0x1a;
 const ABS_TILT_Y: u16 = 0x1b;
 
-fn create_pen_device(device: &DeviceProfile, orientation: Orientation) -> Result<UinputDevice, Box<dyn std::error::Error + Send + Sync>> {
-    let (out_x_max, out_y_max) = orientation.pen_output_dimensions(device.pen_x_max, device.pen_y_max);
+fn create_pen_device(
+    device: &DeviceProfile,
+    orientation: Orientation,
+    screen_map: Option<&ScreenMap>,
+) -> Result<UinputDevice, Box<dyn std::error::Error + Send + Sync>> {
+    // With a screen map the axes cover the whole virtual desktop (in scaled
+    // pixels) so coordinates can be confined to one display's rectangle;
+    // otherwise they cover the digitizer range and span the whole desktop.
+    let (axis_x, axis_y) = match screen_map {
+        Some(map) => (
+            AbsSetup::new(Abs::X, AbsInfo::new(0, map.axis_x_max)),
+            AbsSetup::new(Abs::Y, AbsInfo::new(0, map.axis_y_max)),
+        ),
+        None => {
+            let (out_x_max, out_y_max) =
+                orientation.pen_output_dimensions(device.pen_x_max, device.pen_y_max);
+            (
+                AbsSetup::new(Abs::X, AbsInfo::new(0, out_x_max).with_resolution(100)),
+                AbsSetup::new(Abs::Y, AbsInfo::new(0, out_y_max).with_resolution(100)),
+            )
+        }
+    };
     let axes = [
-        AbsSetup::new(Abs::X, AbsInfo::new(0, out_x_max).with_resolution(100)),
-        AbsSetup::new(Abs::Y, AbsInfo::new(0, out_y_max).with_resolution(100)),
+        axis_x,
+        axis_y,
         AbsSetup::new(Abs::PRESSURE, AbsInfo::new(0, device.pen_pressure_max)),
         AbsSetup::new(Abs::DISTANCE, AbsInfo::new(0, device.pen_distance_max)),
         AbsSetup::new(Abs::TILT_X, AbsInfo::new(-device.pen_tilt_range, device.pen_tilt_range)),
@@ -47,8 +68,13 @@ pub fn run_pen(
     let (_cleanup, mut channel) =
         ssh::open_input_stream(&config.pen_device, config, config.grab_input)?;
 
+    let screen_map = screen::resolve(config.screen.as_deref());
+    if let Some(ref map) = screen_map {
+        log::info!("Mapping pen to display: {}", map.label);
+    }
+
     log::info!("Creating pen uinput device");
-    let uinput = create_pen_device(device_profile, config.orientation)?;
+    let uinput = create_pen_device(device_profile, config.orientation, screen_map.as_ref())?;
 
     if let Ok(name) = uinput.sysname() {
         log::info!("Pen device ready: /sys/devices/virtual/input/{}", name.to_string_lossy());
@@ -69,6 +95,8 @@ pub fn run_pen(
     let mut pending_tilt_x: Option<i32> = None;
     let mut pending_tilt_y: Option<i32> = None;
     let orientation = config.orientation;
+    let (out_x_max, out_y_max) =
+        orientation.pen_output_dimensions(device_profile.pen_x_max, device_profile.pen_y_max);
 
     loop {
         channel.read_exact(&mut buf)?;
@@ -117,6 +145,10 @@ pub fn run_pen(
                 device_profile.pen_x_max,
                 device_profile.pen_y_max,
             );
+            let (out_x, out_y) = match &screen_map {
+                Some(map) => map.map(out_x, out_y, out_x_max, out_y_max),
+                None => (out_x, out_y),
+            };
             batch.insert(0, InputEvent::new(evdevil::event::EventType::from_raw(EV_ABS), Abs::X.raw(), out_x));
             batch.insert(1, InputEvent::new(evdevil::event::EventType::from_raw(EV_ABS), Abs::Y.raw(), out_y));
         }
