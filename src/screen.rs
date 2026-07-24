@@ -17,7 +17,7 @@
 
 use display_info::DisplayInfo;
 
-use crate::fit::{FitMode, Rect};
+use crate::fit::FitMode;
 
 /// Sub-pixel precision factor applied to desktop pixel coordinates: the uinput
 /// axes are advertised as `desktop_size_px * SCALE`, so one axis unit is
@@ -27,6 +27,15 @@ use crate::fit::{FitMode, Rect};
 /// down), so we keep generous headroom; 16 stays well within `i32`.
 const SCALE: i64 = 16;
 
+/// A rectangle in the compositor's logical coordinate space.
+#[derive(Debug, Clone, Copy)]
+struct Rect {
+    x: i64,
+    y: i64,
+    w: i64,
+    h: i64,
+}
+
 /// Maps orientation-transformed pen coordinates into a target rectangle within
 /// the virtual desktop, applying a [`FitMode`].
 #[derive(Debug, Clone)]
@@ -35,7 +44,10 @@ pub struct ScreenMap {
     pub axis_x_max: i32,
     pub axis_y_max: i32,
     /// Target rectangle in scaled units, relative to the desktop's top-left.
-    target: Rect,
+    target_x: i64,
+    target_y: i64,
+    target_w: i64,
+    target_h: i64,
     fit: FitMode,
     pub label: String,
 }
@@ -43,8 +55,16 @@ pub struct ScreenMap {
 impl ScreenMap {
     /// Map a pen coordinate in `0..=in_max` space into the target rectangle.
     pub fn map(&self, x: i32, y: i32, in_x_max: i32, in_y_max: i32) -> (i32, i32) {
-        let (out_x, out_y) =
-            self.fit.map(x as i64, y as i64, in_x_max as i64, in_y_max as i64, self.target);
+        let (out_x, out_y) = self.fit.map(
+            x as i64,
+            y as i64,
+            in_x_max as i64,
+            in_y_max as i64,
+            self.target_x,
+            self.target_y,
+            self.target_w,
+            self.target_h,
+        );
         (out_x as i32, out_y as i32)
     }
 }
@@ -69,7 +89,7 @@ pub fn resolve(fit: FitMode) -> Option<ScreenMap> {
         Err(e) => {
             log::warn!(
                 "Failed to enumerate displays ({}), pen will stretch across the whole desktop",
-                e
+                e,
             );
             return None;
         }
@@ -114,7 +134,10 @@ fn compute_desktop_map(rects: &[Rect], fit: FitMode) -> ScreenMap {
     ScreenMap {
         axis_x_max: (w * SCALE - 1) as i32,
         axis_y_max: (h * SCALE - 1) as i32,
-        target: Rect { x: 0, y: 0, w: w * SCALE, h: h * SCALE },
+        target_x: 0,
+        target_y: 0,
+        target_w: w * SCALE,
+        target_h: h * SCALE,
         fit,
         label: format!("whole desktop {}x{} ({} fit)", w, h, fit),
     }
