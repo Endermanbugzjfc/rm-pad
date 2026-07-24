@@ -4,6 +4,14 @@
 //! range across the whole virtual desktop. To pin the pen to one monitor we
 //! advertise axes covering the full desktop bounding box and remap incoming
 //! pen coordinates into the chosen display's rectangle.
+//!
+//! Accuracy depends on `display-info`'s monitor geometry matching the
+//! compositor's *logical* layout. That holds on uniform-scale, non-rotated
+//! setups. It can diverge on Wayland compositors that scale or rotate an
+//! output (e.g. Hyprland reports a fractional-scaled monitor with different
+//! coordinates than its logical layout), which shifts the mapping. In that
+//! case the pen can land off the intended screen; `--screen all` disables
+//! mapping and restores the whole-desktop behavior.
 
 use display_info::DisplayInfo;
 
