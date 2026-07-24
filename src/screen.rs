@@ -7,8 +7,26 @@
 
 use display_info::DisplayInfo;
 
-/// Sub-pixel precision factor applied to desktop pixel coordinates,
-/// so the pen's ~21k-step digitizer isn't quantized to monitor pixels.
+/// Sub-pixel precision factor applied to desktop pixel coordinates:
+/// the uinput axes are advertised as `desktop_size_px * SCALE`, so one
+/// axis unit is 1/SCALE of a pixel.
+///
+/// ### What if I take away this constant?
+///
+/// If the axes were sized in raw pixels, mapping onto a 1920-px-wide
+/// screen would quantize the pen to 1920 positions, discarding most of
+/// the digitizer's ~21k steps (`pen_x_max`) and causing visible
+/// stair-stepping on slow diagonal strokes. The compositor scales
+/// whatever range the device advertises down to the screen (with
+/// sub-pixel precision internally), so inflating the range is free and
+/// only changes the granularity we can express.
+///
+/// The value must satisfy `SCALE >= pen_x_max / target_screen_width_px`
+/// so no digitizer steps collapse into the same axis unit. 16 covers
+/// screens down to ~1310 px wide (20966 / 16) with room to spare on
+/// anything larger; raise it if the pen should target very small
+/// displays. Upper bound is far off: even a 32k-px-wide desktop at x16
+/// is ~524k units, well within i32.
 const SCALE: i64 = 16;
 
 /// Maps orientation-transformed pen coordinates into one display's
