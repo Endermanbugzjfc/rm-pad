@@ -59,8 +59,8 @@ pub struct Cli {
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
 
-    /// Screen to map the pen to: index, name, or "all" to span every screen
-    /// (default: primary screen when several are connected; see `screens` subcommand)
+    /// Screen to map the pen to: index or name (see `screens` subcommand).
+    /// Default/"all" spans every screen (the pen covers the whole desktop).
     #[arg(long)]
     pub screen: Option<String>,
 

@@ -92,7 +92,7 @@ fn log_startup_info(config: &Config) {
         palm_info,
         config.grab_input,
         config.orientation,
-        config.screen.as_deref().unwrap_or("auto")
+        config.screen.as_deref().unwrap_or("all")
     );
 }
 

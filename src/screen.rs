@@ -62,13 +62,17 @@ impl ScreenMap {
 
 /// Resolve the configured screen selection to a coordinate mapping.
 ///
-/// Returns `None` when the pen should keep spanning the whole desktop:
-/// the selection is "all", only one display exists and none was requested,
-/// or display enumeration is unavailable.
+/// Returns `None` when the pen should span the whole desktop (the default,
+/// backward-compatible behavior): no selection was given, the selection is
+/// "all", the selection matches no display, or enumeration is unavailable.
+/// A mapping is only produced when the user explicitly names a screen.
 pub fn resolve(selection: Option<&str>) -> Option<ScreenMap> {
-    if matches!(selection, Some(s) if s.eq_ignore_ascii_case("all")) {
-        return None;
-    }
+    let selection = match selection {
+        // Unset or "all" => no mapping, span every screen (original behavior).
+        None => return None,
+        Some(s) if s.eq_ignore_ascii_case("all") => return None,
+        Some(s) => s,
+    };
 
     let displays = match DisplayInfo::all() {
         Ok(d) if !d.is_empty() => d,
@@ -85,28 +89,15 @@ pub fn resolve(selection: Option<&str>) -> Option<ScreenMap> {
         }
     };
 
-    let target = match selection {
-        Some(sel) => match find_display(&displays, sel) {
-            Some(d) => d,
-            None => {
-                log::error!(
-                    "No display matches '{}' (available: {}), pen will span the whole desktop",
-                    sel,
-                    display_names(&displays)
-                );
-                return None;
-            }
-        },
+    let target = match find_display(&displays, selection) {
+        Some(d) => d,
         None => {
-            if displays.len() == 1 {
-                return None;
-            }
-            let primary = displays.iter().find(|d| d.is_primary).unwrap_or(&displays[0]);
-            log::info!(
-                "Multiple displays detected, defaulting pen to {} (use --screen to change, --screen all to span)",
-                primary.name
+            log::error!(
+                "No display matches '{}' (available: {}), pen will span the whole desktop",
+                selection,
+                display_names(&displays)
             );
-            primary
+            return None;
         }
     };
 

@@ -7,7 +7,7 @@ Features:
 - Touch input (multi-touch gestures, tapping and moving)
 - Configurable palm rejection (disables touch input for a configurable grace period if any pen input is detected, default 500ms)
 - Screen orientation support (portrait, landscape-right, landscape-left, inverted)
-- Multi-monitor support: confine the pen to a single screen with `--screen` (list screens with `rm-pad screens`); defaults to the primary screen when several are connected, or `--screen all` to span every screen
+- Multi-monitor support: confine the pen to a single screen with `--screen` (list screens with `rm-pad screens`); by default the pen spans every screen (`--screen all`)
 - Input grab (enabled by default): A small helper binary is uploaded to `/tmp` on the tablet and uses `EVIOCGRAB` to exclusively grab the input devices. The tablet UI (xochitl) keeps running but receives no pen/touch events. The grab is automatically released when rm-pad exits or the SSH connection drops — no reboot or manual cleanup needed. Use `--no-grab-input` to disable.
 - Works over both wifi and USB
 - Very low latency (as long as your connection to the tablet is fast)
@@ -125,7 +125,7 @@ You can also use environment variables:
 - **no_palm_rejection**: Disable palm rejection
 - **palm_grace_ms**: Palm rejection grace period in milliseconds (default: 500)
 - **orientation**: Screen orientation - `portrait`, `landscape-right` (default), `landscape-left`, or `inverted`
-- **screen**: Screen to map the pen to - a screen index, a name (see `rm-pad screens`), or `all` to span every screen. Defaults to the primary screen when multiple are connected.
+- **screen**: Screen to map the pen to - a screen index or name (see `rm-pad screens`). Unset (or `all`) spans every screen, so the pen covers the whole desktop.
 
 > **Note:** screen mapping uses [display-info](https://crates.io/crates/display-info) for monitor geometry, applying each display's `scale_factor` to recover the compositor's logical layout (so scaled/HiDPI monitors map correctly). Use `--screen all` to fall back to the whole-desktop behavior.
 
