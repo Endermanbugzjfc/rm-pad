@@ -20,6 +20,15 @@ use serde::Deserialize;
 use std::fmt;
 use std::str::FromStr;
 
+/// A rectangle in the compositor's logical coordinate space.
+#[derive(Debug, Clone, Copy)]
+pub struct Rect {
+    pub x: i64,
+    pub y: i64,
+    pub w: i64,
+    pub h: i64,
+}
+
 /// How the pen's active area is fitted into the target rectangle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 #[serde(rename_all = "kebab-case")]
@@ -40,69 +49,51 @@ impl FitMode {
     /// For [`FitMode::Fill`] this is exactly the target. For `Contain` it is
     /// the largest aspect-preserving rectangle that fits inside the target;
     /// for `Cover`, the smallest that covers it (so it may exceed the target).
-    pub fn dest_rect(
-        &self,
-        in_w: i64,
-        in_h: i64,
-        tx: i64,
-        ty: i64,
-        tw: i64,
-        th: i64,
-    ) -> (i64, i64, i64, i64) {
+    pub fn dest_rect(&self, in_w: i64, in_h: i64, t: Rect) -> Rect {
         let in_w = in_w.max(1);
         let in_h = in_h.max(1);
 
-        // Compare pen aspect (in_w/in_h) with target aspect (tw/th) via
+        // Compare pen aspect (in_w/in_h) with target aspect (t.w/t.h) via
         // cross-multiplication to stay in integer arithmetic.
-        let width_limited = tw * in_h <= th * in_w;
+        let width_limited = t.w * in_h <= t.h * in_w;
         let (ew, eh) = match self {
-            FitMode::Fill => (tw, th),
+            FitMode::Fill => (t.w, t.h),
             // Contain shrinks to the tighter of the two axes.
             FitMode::Contain => {
                 if width_limited {
-                    (tw, in_h * tw / in_w)
+                    (t.w, in_h * t.w / in_w)
                 } else {
-                    (in_w * th / in_h, th)
+                    (in_w * t.h / in_h, t.h)
                 }
             }
             // Cover grows to the looser of the two axes (opposite choice).
             FitMode::Cover => {
                 if width_limited {
-                    (in_w * th / in_h, th)
+                    (in_w * t.h / in_h, t.h)
                 } else {
-                    (tw, in_h * tw / in_w)
+                    (t.w, in_h * t.w / in_w)
                 }
             }
         };
 
-        let ox = tx + (tw - ew) / 2;
-        let oy = ty + (th - eh) / 2;
-        (ox, oy, ew, eh)
+        Rect {
+            x: t.x + (t.w - ew) / 2,
+            y: t.y + (t.h - eh) / 2,
+            w: ew,
+            h: eh,
+        }
     }
 
     /// Map a pen point in `0..=in_*` space into the target rectangle using
     /// this fit mode, clamped to the target so the cursor never leaves it
     /// (needed for [`FitMode::Cover`], harmless otherwise).
-    // Scalar target params (rather than a Rect) mirror the multiscreen
-    // `ScreenMap`'s `target_x/y/w/h` fields, to keep the eventual merge small.
-    #[allow(clippy::too_many_arguments)]
-    pub fn map(
-        &self,
-        x: i64,
-        y: i64,
-        in_w: i64,
-        in_h: i64,
-        tx: i64,
-        ty: i64,
-        tw: i64,
-        th: i64,
-    ) -> (i64, i64) {
-        let (ox, oy, ew, eh) = self.dest_rect(in_w, in_h, tx, ty, tw, th);
+    pub fn map(&self, x: i64, y: i64, in_w: i64, in_h: i64, t: Rect) -> (i64, i64) {
+        let d = self.dest_rect(in_w, in_h, t);
         let in_w = in_w.max(1);
         let in_h = in_h.max(1);
-        let out_x = ox + x * (ew - 1).max(0) / in_w;
-        let out_y = oy + y * (eh - 1).max(0) / in_h;
-        (out_x.clamp(tx, tx + tw - 1), out_y.clamp(ty, ty + th - 1))
+        let out_x = d.x + x * (d.w - 1).max(0) / in_w;
+        let out_y = d.y + y * (d.h - 1).max(0) / in_h;
+        (out_x.clamp(t.x, t.x + t.w - 1), out_y.clamp(t.y, t.y + t.h - 1))
     }
 }
 
@@ -126,7 +117,7 @@ impl FromStr for FitMode {
             "cover" => Ok(FitMode::Cover),
             _ => Err(format!(
                 "Invalid fit mode '{}'. Valid values: fill, contain, cover",
-                s,
+                s
             )),
         }
     }
@@ -139,50 +130,51 @@ mod tests {
     // A wide pen area (2:1) fitted into a tall target (1:2), origin at 0.
     const IN_W: i64 = 200;
     const IN_H: i64 = 100;
-    const TW: i64 = 100;
-    const TH: i64 = 200;
+    const TARGET: Rect = Rect { x: 0, y: 0, w: 100, h: 200 };
 
     #[test]
     fn fill_uses_whole_target() {
-        assert_eq!(FitMode::Fill.dest_rect(IN_W, IN_H, 0, 0, TW, TH), (0, 0, 100, 200));
+        let d = FitMode::Fill.dest_rect(IN_W, IN_H, TARGET);
+        assert_eq!((d.x, d.y, d.w, d.h), (0, 0, 100, 200));
     }
 
     #[test]
     fn contain_letterboxes_inside_target() {
         // Pen is 2:1, target is 100 wide -> height 50, centered vertically.
-        let (x, y, w, h) = FitMode::Contain.dest_rect(IN_W, IN_H, 0, 0, TW, TH);
-        assert_eq!((w, h), (100, 50));
-        assert_eq!((x, y), (0, 75)); // (200-50)/2
+        let d = FitMode::Contain.dest_rect(IN_W, IN_H, TARGET);
+        assert_eq!((d.w, d.h), (100, 50));
+        assert_eq!((d.x, d.y), (0, 75)); // (200-50)/2
     }
 
     #[test]
     fn cover_overflows_and_centers() {
         // To cover a 200-tall target with a 2:1 pen, width -> 400, centered.
-        let (x, y, w, h) = FitMode::Cover.dest_rect(IN_W, IN_H, 0, 0, TW, TH);
-        assert_eq!((w, h), (400, 200));
-        assert_eq!((x, y), (-150, 0)); // (100-400)/2
+        let d = FitMode::Cover.dest_rect(IN_W, IN_H, TARGET);
+        assert_eq!((d.w, d.h), (400, 200));
+        assert_eq!((d.x, d.y), (-150, 0)); // (100-400)/2
     }
 
     #[test]
     fn cover_clamps_to_target() {
         // Extremes of the pen must stay within the target rectangle.
-        let tl = FitMode::Cover.map(0, 0, IN_W, IN_H, 0, 0, TW, TH);
-        let br = FitMode::Cover.map(IN_W, IN_H, IN_W, IN_H, 0, 0, TW, TH);
+        let tl = FitMode::Cover.map(0, 0, IN_W, IN_H, TARGET);
+        let br = FitMode::Cover.map(IN_W, IN_H, IN_W, IN_H, TARGET);
         assert_eq!(tl, (0, 0));
-        assert_eq!(br, (TW - 1, TH - 1));
+        assert_eq!(br, (TARGET.w - 1, TARGET.h - 1));
     }
 
     #[test]
     fn contain_maps_center_to_target_center() {
-        let (cx, cy) = FitMode::Contain.map(IN_W / 2, IN_H / 2, IN_W, IN_H, 0, 0, TW, TH);
-        assert!((cx - TW / 2).abs() <= 1, "cx={cx}");
-        assert!((cy - TH / 2).abs() <= 1, "cy={cy}");
+        let (cx, cy) = FitMode::Contain.map(IN_W / 2, IN_H / 2, IN_W, IN_H, TARGET);
+        assert!((cx - TARGET.w / 2).abs() <= 1, "cx={cx}");
+        assert!((cy - TARGET.h / 2).abs() <= 1, "cy={cy}");
     }
 
     #[test]
     fn fill_matches_plain_linear_mapping() {
         // Fill with an offset target must reproduce origin + x*(w-1)/in.
-        let (x, y) = FitMode::Fill.map(IN_W, 0, IN_W, IN_H, 10, 20, TW, TH);
-        assert_eq!((x, y), (10 + (TW - 1), 20));
+        let t = Rect { x: 10, y: 20, w: 100, h: 200 };
+        let (x, y) = FitMode::Fill.map(IN_W, 0, IN_W, IN_H, t);
+        assert_eq!((x, y), (10 + (t.w - 1), 20));
     }
 }
