@@ -1,10 +1,12 @@
 mod config;
 mod device;
 mod dump;
+mod fit;
 mod grab;
 mod input;
 mod orientation;
 mod palm;
+mod screen;
 mod ssh;
 
 use std::sync::atomic::Ordering;
@@ -77,13 +79,14 @@ fn log_startup_info(config: &Config) {
     };
 
     log::info!(
-        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}",
+        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}, fit={}",
         config.host,
         if config.run_pen() { &config.pen_device } else { "off" },
         if config.run_touch() { &config.touch_device } else { "off" },
         palm_info,
         config.grab_input,
-        config.orientation
+        config.orientation,
+        config.fit
     );
 }
 

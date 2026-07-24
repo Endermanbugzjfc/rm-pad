@@ -6,6 +6,7 @@ pub use cli::{Cli, Command};
 use std::path::PathBuf;
 
 use crate::device::DeviceProfile;
+use crate::fit::FitMode;
 use crate::orientation::Orientation;
 
 /// Authentication method for SSH connection.
@@ -29,6 +30,7 @@ pub struct Config {
     pub no_palm_rejection: bool,
     pub palm_grace_ms: u64,
     pub orientation: Orientation,
+    pub fit: FitMode,
 }
 
 impl Config {
@@ -66,6 +68,7 @@ impl Config {
                 .or(file_config.palm_grace_ms)
                 .unwrap_or(500),
             orientation: cli.orientation.unwrap_or(file_config.orientation),
+            fit: cli.fit.unwrap_or(file_config.fit),
         }
     }
 

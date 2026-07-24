@@ -7,6 +7,7 @@ Features:
 - Touch input (multi-touch gestures, tapping and moving)
 - Configurable palm rejection (disables touch input for a configurable grace period if any pen input is detected, default 500ms)
 - Screen orientation support (portrait, landscape-right, landscape-left, inverted)
+- Fit modes (`--fit`): how the pen area maps onto the desktop — `fill` (stretch, default), `contain` (keep aspect, letterboxed), or `cover` (keep aspect, edges cropped)
 - Input grab (enabled by default): A small helper binary is uploaded to `/tmp` on the tablet and uses `EVIOCGRAB` to exclusively grab the input devices. The tablet UI (xochitl) keeps running but receives no pen/touch events. The grab is automatically released when rm-pad exits or the SSH connection drops — no reboot or manual cleanup needed. Use `--no-grab-input` to disable.
 - Works over both wifi and USB
 - Very low latency (as long as your connection to the tablet is fast)
@@ -124,6 +125,9 @@ You can also use environment variables:
 - **no_palm_rejection**: Disable palm rejection
 - **palm_grace_ms**: Palm rejection grace period in milliseconds (default: 500)
 - **orientation**: Screen orientation - `portrait`, `landscape-right` (default), `landscape-left`, or `inverted`
+- **fit**: How the pen area maps onto the desktop - `fill` (stretch to the whole desktop, ignoring aspect ratio; default), `contain` (preserve the tablet's aspect ratio, letterboxed so the pen can't reach two edges), or `cover` (preserve aspect ratio and cover the whole desktop, cropping the tablet's edges)
+
+> **Note:** `contain`/`cover` read monitor geometry via [display-info](https://crates.io/crates/display-info) (applying each display's `scale_factor`) and rely on the compositor mapping an absolute tablet across the whole logical desktop (as Hyprland/wlroots do). `fill` needs neither and reproduces the historical behavior exactly.
 
 All options can also be set via command-line flags. Run `rm-pad --help` for details.
 

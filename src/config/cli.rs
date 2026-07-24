@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+use crate::fit::FitMode;
 use crate::orientation::Orientation;
 
 #[derive(Parser)]
@@ -58,6 +59,11 @@ pub struct Cli {
     /// Screen orientation (portrait, landscape-right, landscape-left, inverted)
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
+
+    /// How the pen area fits the desktop: fill (stretch, default), contain
+    /// (letterbox, keep aspect), or cover (crop, keep aspect)
+    #[arg(long, value_parser = clap::value_parser!(FitMode))]
+    pub fit: Option<FitMode>,
 
     /// Path to config file
     #[arg(long, env = "RMPAD_CONFIG")]
