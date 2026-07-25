@@ -60,7 +60,7 @@ pub struct Cli {
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
 
-    /// How the pen area fits the desktop: fill (stretch, default), contain
+    /// How the pen area fits the desktop: fill/stretch (default), contain/fit
     /// (letterbox, keep aspect), or cover (crop, keep aspect)
     #[arg(long, value_parser = clap::value_parser!(FitMode))]
     pub fit: Option<FitMode>,
