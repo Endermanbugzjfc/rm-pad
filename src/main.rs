@@ -1,10 +1,12 @@
 mod config;
 mod device;
+mod display;
 mod dump;
 mod grab;
 mod input;
 mod orientation;
 mod palm;
+mod pen_map;
 mod screen;
 mod ssh;
 
@@ -28,7 +30,7 @@ fn main() -> Result<()> {
 
     // The screens subcommand is purely local, no SSH needed
     if matches!(cli.command, Some(Command::Screens)) {
-        return screen::print_displays();
+        return display::print_displays();
     }
 
     // Detect device via SSH (required)
