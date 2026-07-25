@@ -28,6 +28,7 @@ pub struct FileConfig {
     pub orientation: Orientation,
     #[serde(default)]
     pub fit: FitMode,
+    pub screen: Option<String>,
 }
 
 impl Default for FileConfig {
@@ -45,6 +46,7 @@ impl Default for FileConfig {
             palm_grace_ms: None,
             orientation: Orientation::default(),
             fit: FitMode::default(),
+            screen: None,
         }
     }
 }

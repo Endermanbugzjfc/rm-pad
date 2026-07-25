@@ -64,6 +64,11 @@ pub struct Cli {
     /// (letterbox, keep aspect), or cover (crop, keep aspect)
     #[arg(long, value_parser = clap::value_parser!(FitMode))]
     pub fit: Option<FitMode>,
+    
+    /// Screen to map the pen to: index or name (see `screens` subcommand).
+    /// Default/"all" spans every screen (the pen covers the whole desktop).
+    #[arg(long)]
+    pub screen: Option<String>,
 
     /// Path to config file
     #[arg(long, env = "RMPAD_CONFIG")]
@@ -77,4 +82,6 @@ pub enum Command {
         /// Device to dump: "touch" or "pen"
         device: String,
     },
+    /// List connected screens (for the --screen option)
+    Screens,
 }

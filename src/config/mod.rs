@@ -31,6 +31,7 @@ pub struct Config {
     pub palm_grace_ms: u64,
     pub orientation: Orientation,
     pub fit: FitMode,
+    pub screen: Option<String>,
 }
 
 impl Config {
@@ -69,6 +70,7 @@ impl Config {
                 .unwrap_or(500),
             orientation: cli.orientation.unwrap_or(file_config.orientation),
             fit: cli.fit.unwrap_or(file_config.fit),
+            screen: cli.screen.clone().or(file_config.screen),
         }
     }
 

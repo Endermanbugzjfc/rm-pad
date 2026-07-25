@@ -11,6 +11,7 @@ use crate::display;
 use crate::fit;
 use crate::palm::SharedPalmState;
 use crate::pen_map::{PenInputMap, PenInputPipeline};
+use crate::screen;
 use crate::ssh;
 
 use super::event::{key_event, parse_input_event, ABS_PRESSURE, EV_ABS, EV_SYN, SYN_REPORT};
@@ -63,9 +64,7 @@ pub fn run_pen(
     let (_cleanup, mut channel) =
         ssh::open_input_stream(&config.pen_device, config, config.grab_input)?;
 
-    // Build the fixed-order pen-coordinate pipeline. Displays are enumerated
-    // once here and shared by every stage. A screen-selection stage will be
-    // pushed here too once fit and multi-screen are merged.
+    // Build the fixed-order pen-coordinate pipeline.
     let orientation = config.orientation;
     let (seed_x_max, seed_y_max) =
         orientation.pen_output_dimensions(device_profile.pen_x_max, device_profile.pen_y_max);
@@ -75,6 +74,9 @@ pub fn run_pen(
     if let Some(displays) = &displays {
         if let Some(fit_map) = fit::resolve(config.fit, displays) {
             maps.push(Box::new(fit_map));
+        }
+        if let Some(screen_map) = screen::resolve(config.screen.as_deref(), displays) {
+            maps.push(Box::new(screen_map));
         }
     }
     let pipeline = PenInputPipeline::new(seed_x_max, seed_y_max, maps);

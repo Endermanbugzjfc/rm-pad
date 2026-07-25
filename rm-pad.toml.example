@@ -13,3 +13,5 @@ host = "10.11.99.1"
 # fit = "fill"        # pen-to-desktop mapping: "fill" (stretch, default),
                       # "contain" (keep aspect, letterboxed), or "cover"
                       # (keep aspect, edges cropped)
+# screen = "0"        # screen to map the pen to: index or name. Unset (or "all")
+                      # spans every screen. List screens with: rm-pad screens
