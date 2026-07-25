@@ -1,12 +1,13 @@
 mod config;
 mod device;
+mod display;
 mod dump;
 mod fit;
 mod grab;
 mod input;
 mod orientation;
 mod palm;
-mod screen;
+mod pen_map;
 mod ssh;
 
 use std::sync::atomic::Ordering;

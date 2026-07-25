@@ -7,9 +7,10 @@ use evdevil::{AbsInfo, Bus, InputId, InputProp};
 
 use crate::config::Config;
 use crate::device::DeviceProfile;
-use crate::orientation::Orientation;
+use crate::display;
+use crate::fit;
 use crate::palm::SharedPalmState;
-use crate::screen::{self, ScreenMap};
+use crate::pen_map::{PenInputMap, PenInputPipeline};
 use crate::ssh;
 
 use super::event::{key_event, parse_input_event, ABS_PRESSURE, EV_ABS, EV_SYN, SYN_REPORT};
@@ -21,48 +22,28 @@ const ABS_TILT_Y: u16 = 0x1b;
 
 fn create_pen_device(
     device: &DeviceProfile,
-    orientation: Orientation,
-    screen_map: Option<&ScreenMap>,
+    pipeline: &PenInputPipeline,
 ) -> Result<UinputDevice, Box<dyn std::error::Error + Send + Sync>> {
-    // With a screen map the axes cover the whole virtual desktop (in scaled
-    // pixels) so the pen area can be fitted within it; otherwise they cover
-    // the digitizer range and the compositor stretches it across the desktop.
-    let (axis_x, axis_y) = match screen_map {
-        // Resolution must be non-zero or libinput refuses to create a tablet
-        // tool (Hyprland/wlroots then never sees the device and the pen is
-        // dead). The value is arbitrary for absolute->output mapping.
-        Some(map) => (
-            AbsSetup::new(Abs::X, AbsInfo::new(0, map.axis_x_max).with_resolution(100)),
-            AbsSetup::new(Abs::Y, AbsInfo::new(0, map.axis_y_max).with_resolution(100)),
-        ),
-        None => {
-            let (out_x_max, out_y_max) =
-                orientation.pen_output_dimensions(device.pen_x_max, device.pen_y_max);
-            (
-                AbsSetup::new(Abs::X, AbsInfo::new(0, out_x_max).with_resolution(100)),
-                AbsSetup::new(Abs::Y, AbsInfo::new(0, out_y_max).with_resolution(100)),
-            )
-        }
-    };
+    // The pipeline's final axis range is the uinput ABS_X/ABS_Y space: the pen
+    // digitizer range when empty (compositor stretches it across the desktop),
+    // or whatever a mapping stage advertises.
+    //
+    // Resolution must be non-zero or libinput refuses to create a tablet tool
+    // (Hyprland/wlroots then never sees the device and the pen is dead). The
+    // value is arbitrary for absolute->output mapping.
     let axes = [
-        axis_x,
-        axis_y,
+        AbsSetup::new(Abs::X, AbsInfo::new(0, pipeline.axis_x_max).with_resolution(100)),
+        AbsSetup::new(Abs::Y, AbsInfo::new(0, pipeline.axis_y_max).with_resolution(100)),
         AbsSetup::new(Abs::PRESSURE, AbsInfo::new(0, device.pen_pressure_max)),
         AbsSetup::new(Abs::DISTANCE, AbsInfo::new(0, device.pen_distance_max)),
         AbsSetup::new(Abs::TILT_X, AbsInfo::new(-device.pen_tilt_range, device.pen_tilt_range)),
         AbsSetup::new(Abs::TILT_Y, AbsInfo::new(-device.pen_tilt_range, device.pen_tilt_range)),
     ];
 
-    match screen_map {
-        Some(map) => log::info!(
-            "Pen axis range 0..{} x 0..{} (fitted to desktop)",
-            map.axis_x_max, map.axis_y_max
-        ),
-        None => {
-            let (x, y) = orientation.pen_output_dimensions(device.pen_x_max, device.pen_y_max);
-            log::info!("Pen axis range 0..{} x 0..{} (full desktop stretch)", x, y);
-        }
-    }
+    log::info!(
+        "Pen axis range 0..{} x 0..{} [{}]",
+        pipeline.axis_x_max, pipeline.axis_y_max, pipeline.describe()
+    );
 
     let device = UinputDevice::builder()?
         .with_input_id(InputId::new(Bus::from_raw(0x03), 0x2d1f, 0x0001, 0))?
@@ -82,13 +63,25 @@ pub fn run_pen(
     let (_cleanup, mut channel) =
         ssh::open_input_stream(&config.pen_device, config, config.grab_input)?;
 
-    let screen_map = screen::resolve(config.fit);
-    if let Some(ref map) = screen_map {
-        log::info!("Fitting pen to {}", map.label);
+    // Build the fixed-order pen-coordinate pipeline. Displays are enumerated
+    // once here and shared by every stage. A screen-selection stage will be
+    // pushed here too once fit and multi-screen are merged.
+    let orientation = config.orientation;
+    let (seed_x_max, seed_y_max) =
+        orientation.pen_output_dimensions(device_profile.pen_x_max, device_profile.pen_y_max);
+
+    let displays = display::enumerate();
+    let mut maps: Vec<Box<dyn PenInputMap>> = Vec::new();
+    if let Some(displays) = &displays {
+        if let Some(fit_map) = fit::resolve(config.fit, displays) {
+            maps.push(Box::new(fit_map));
+        }
     }
+    let pipeline = PenInputPipeline::new(seed_x_max, seed_y_max, maps);
+    log::info!("Pen input pipeline: {}", pipeline.describe());
 
     log::info!("Creating pen uinput device");
-    let uinput = create_pen_device(device_profile, config.orientation, screen_map.as_ref())?;
+    let uinput = create_pen_device(device_profile, &pipeline)?;
 
     if let Ok(name) = uinput.sysname() {
         log::info!("Pen device ready: /sys/devices/virtual/input/{}", name.to_string_lossy());
@@ -108,9 +101,6 @@ pub fn run_pen(
     let mut pending_y: Option<i32> = None;
     let mut pending_tilt_x: Option<i32> = None;
     let mut pending_tilt_y: Option<i32> = None;
-    let orientation = config.orientation;
-    let (out_x_max, out_y_max) =
-        orientation.pen_output_dimensions(device_profile.pen_x_max, device_profile.pen_y_max);
 
     loop {
         channel.read_exact(&mut buf)?;
@@ -159,10 +149,7 @@ pub fn run_pen(
                 device_profile.pen_x_max,
                 device_profile.pen_y_max,
             );
-            let (mapped_x, mapped_y) = match &screen_map {
-                Some(map) => map.map(out_x, out_y, out_x_max, out_y_max),
-                None => (out_x, out_y),
-            };
+            let (mapped_x, mapped_y) = pipeline.map(out_x, out_y);
             log::debug!(
                 "pen raw=({x},{y}) oriented=({out_x},{out_y}) mapped=({mapped_x},{mapped_y})"
             );
