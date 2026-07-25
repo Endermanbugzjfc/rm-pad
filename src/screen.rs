@@ -8,6 +8,8 @@
 //! [`ScreenMap`] is one [`PenInputMap`] stage; display geometry comes from
 //! [`crate::display`] (enumerated once by the caller and passed to [`resolve`]).
 
+use std::env;
+
 use display_info::DisplayInfo;
 
 use crate::display::{self, Rect};
@@ -86,6 +88,22 @@ pub fn resolve(selection: Option<&str>, displays: &[DisplayInfo]) -> Option<Scre
         Some(s) if s.eq_ignore_ascii_case("all") => return None,
         Some(s) => s,
     };
+
+    let warn_desktop = env::var("XDG_CURRENT_DESKTOP").ok().and_then(|desktop| Some(
+        match desktop.as_str() {
+            "KDE" => desktop,
+            _ => return None,
+        }
+    ));
+
+    if let Some(desktop) = warn_desktop {
+        log::warn!(
+            "Your current desktop environment ({}) forces pen movements in a \
+            specific monitor (likely the currently active one), setting the screen option \
+            will have no effect",
+            desktop,
+        );
+    }
 
     let target = match display::find_display(displays, selection) {
         Some(d) => d,

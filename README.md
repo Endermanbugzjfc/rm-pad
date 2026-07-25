@@ -125,7 +125,7 @@ You can also use environment variables:
 - **no_palm_rejection**: Disable palm rejection
 - **palm_grace_ms**: Palm rejection grace period in milliseconds (default: 500)
 - **orientation**: Screen orientation - `portrait`, `landscape-right` (default), `landscape-left`, or `inverted`
-- **screen**: Screen to map the pen to - a screen index or name (see `rm-pad screens`). Unset (or `all`) spans every screen, so the pen covers the whole desktop.
+- **screen**: Screen to map the pen to - a screen index or name (see `rm-pad screens`). Unset (or `all`) spans every screen, so the pen covers the whole desktop. *This option is ignored on certain desktop environments that lock pen movements on the active monitor.*
 
 > **Note:** screen mapping uses [display-info](https://crates.io/crates/display-info) for monitor geometry, applying each display's `scale_factor` to recover the compositor's logical layout (so scaled/HiDPI monitors map correctly). Use `--screen all` to fall back to the whole-desktop behavior.
 

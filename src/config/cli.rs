@@ -61,6 +61,7 @@ pub struct Cli {
 
     /// Screen to map the pen to: index or name (see `screens` subcommand).
     /// Default/"all" spans every screen (the pen covers the whole desktop).
+    /// This option is ignored on certain desktop environments.
     #[arg(long)]
     pub screen: Option<String>,
 
