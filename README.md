@@ -31,7 +31,7 @@ The package includes a udev rule for uinput access and a systemd user service. A
 
 ### Nix
 
-A flake is provided with a dev shell and two packages:
+A flake is provided with a dev shell and a build-from-source package:
 
 ```bash
 # Development shell (Rust toolchain + ARM cross-compilers + native deps).
@@ -40,12 +40,13 @@ nix develop
 
 # Build/run from source:
 nix run .#rm-pad -- --help
+```
 
-# Prebuilt binary for the closest git tag reachable from HEAD, pulled from
-# GitHub releases. This needs --impure (flakes can't read git tags purely) and
-# must be run from the repo root. It fails explicitly if that tag ships no
-# x86_64 binary.
-nix build .#rm-pad-bin --impure
+For the latest prebuilt x86_64 binary (no compiling), use the `tag-bin` branch,
+which pins the newest upstream release and refreshes it daily:
+
+```bash
+nix run github:Endermanbugzjfc/rm-pad/tag-bin -- --help
 ```
 
 ### Building from source
