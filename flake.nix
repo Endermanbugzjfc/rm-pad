@@ -18,6 +18,7 @@
       {
         packages = {
           default = self.packages.${system}.rm-pad;
+#         rm-pad-bin = ... # see README
           rm-pad = pkgs.callPackage ./nix/package.nix {
             rev = self.rev or self.dirtyRev or null;
           };
