@@ -18,7 +18,9 @@
       {
         packages = {
           default = self.packages.${system}.rm-pad;
-          rm-pad = pkgs.callPackage ./nix/package.nix { };
+          rm-pad = pkgs.callPackage ./nix/package.nix {
+            rev = self.rev or self.dirtyRev or null;
+          };
         };
 
         devShells.default = pkgs.callPackage ./nix/shell.nix { };
