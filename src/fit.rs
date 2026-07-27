@@ -1,10 +1,17 @@
 //! Aspect-ratio fit modes, applied as an input-side warp.
 //!
 //! The reMarkable's active area and the target (the whole desktop, or a single
-//! display) rarely share an aspect ratio. A [`FitMap`] warps pen coordinates
-//! *within pen-input space* (`0..=in`), so that a later linear stretch — the
-//! compositor stretching the pen-sized axes across the desktop, or a
-//! screen-selection map onto one display — lands the pen with the chosen fit:
+//! display) rarely share an aspect ratio. This correction is applied here, on
+//! the virtual device, rather than left to a compositor-level tablet mapping:
+//! that mapping is only honored by programs that respect it, and some apps
+//! (osu!lazer, for one) take over the tablet and handle coordinates themselves.
+//! Warping in input space bakes the fit into what *every* program receives, so
+//! the chosen aspect-ratio behavior is consistent across all of them.
+//!
+//! A [`FitMap`] warps pen coordinates *within pen-input space* (`0..=in`), so
+//! that a later linear stretch — the compositor stretching the pen-sized axes
+//! across the desktop, or a screen-selection map onto one display — lands the
+//! pen with the chosen fit:
 //!
 //! - [`FitMode::Fill`]: no warp; the stretch fills the target, ignoring aspect.
 //! - [`FitMode::Contain`]: compress the axis that would otherwise be

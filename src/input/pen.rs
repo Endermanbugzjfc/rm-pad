@@ -55,6 +55,20 @@ fn create_pen_device(
     Ok(device)
 }
 
+fn resolve_pen_inputs_maps(config: &Config) -> Vec<Box<dyn PenInputMap>> {
+    let displays = display::enumerate();
+    let mut maps: Vec<Box<dyn PenInputMap>> = Vec::new();
+
+    if let Some(displays) = &displays {
+        if let Some(fit_map) = fit::resolve(config.fit, displays) {
+            maps.push(Box::new(fit_map));
+        }
+    }
+
+    // Add more strategies (PenInputMap) when needed.
+    maps
+}
+
 pub fn run_pen(
     config: &Config,
     device_profile: &DeviceProfile,
@@ -70,14 +84,7 @@ pub fn run_pen(
     let (seed_x_max, seed_y_max) =
         orientation.pen_output_dimensions(device_profile.pen_x_max, device_profile.pen_y_max);
 
-    let displays = display::enumerate();
-    let mut maps: Vec<Box<dyn PenInputMap>> = Vec::new();
-    if let Some(displays) = &displays {
-        if let Some(fit_map) = fit::resolve(config.fit, displays) {
-            maps.push(Box::new(fit_map));
-        }
-    }
-    let pipeline = PenInputPipeline::new(seed_x_max, seed_y_max, maps);
+    let pipeline = PenInputPipeline::new(seed_x_max, seed_y_max, resolve_pen_inputs_maps(config));
     log::info!("Pen input pipeline: {}", pipeline.describe());
 
     log::info!("Creating pen uinput device");
