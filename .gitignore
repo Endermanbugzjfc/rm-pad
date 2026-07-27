@@ -1,5 +1,6 @@
 /target
 /.direnv
+/result*
 
 rm-key*
 dumps/
