@@ -29,6 +29,25 @@ makepkg -si
 
 The package includes a udev rule for uinput access and a systemd user service. After installation, follow the setup instructions below.
 
+### Nix
+
+A flake is provided with a dev shell and two packages:
+
+```bash
+# Development shell (Rust toolchain + ARM cross-compilers + native deps).
+# Or run `direnv allow` to load it automatically via the bundled .envrc.
+nix develop
+
+# Build/run from source:
+nix run .#rm-pad -- --help
+
+# Prebuilt binary for the closest git tag reachable from HEAD, pulled from
+# GitHub releases. This needs --impure (flakes can't read git tags purely) and
+# must be run from the repo root. It fails explicitly if that tag ships no
+# x86_64 binary.
+nix build .#rm-pad-bin --impure
+```
+
 ### Building from source
 
 You'll need Rust and C cross-compilers for ARM:
