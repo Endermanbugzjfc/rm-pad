@@ -110,6 +110,7 @@ Copy the `rm-pad.toml.example` file to one of these locations (recommended: `~/.
 - **host**: reMarkable tablet IP address or hostname. Default is `10.11.99.1` (USB connection). For WiFi, use your tablet's IP address.
 - **key_path**: Path to SSH private key for authentication. Defaults to your default SSH key (`~/.ssh/id_ed25519`, `~/.ssh/id_rsa`, etc.). Only used if `password` is not set.
 - **password**: Root password for SSH authentication. If set, `key_path` is ignored. **Warning**: Restrict file permissions with `chmod 600` if storing password in config file.
+- **ssh_config**: Resolve connection settings from `~/.ssh/config` (default: `true`). When enabled, `host` is treated as a lookup key and any matching `HostName`, `Port`, `User`, and `IdentityFile` override the defaults (`root`, port `22`, key `rm-key`). Explicit `password`/`key_path` still take precedence. Disable with `--no-ssh-config`.
 
 You can also use environment variables:
 - `RMPAD_HOST`: Override host

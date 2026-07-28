@@ -47,6 +47,14 @@ pub struct Cli {
     #[arg(long)]
     pub no_grab_input: bool,
 
+    /// Use ~/.ssh/config for connection settings [default: true]
+    #[arg(long)]
+    pub ssh_config: bool,
+
+    /// Ignore ~/.ssh/config
+    #[arg(long)]
+    pub no_ssh_config: bool,
+
     /// Disable palm rejection
     #[arg(long)]
     pub no_palm_rejection: bool,

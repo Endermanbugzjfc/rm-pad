@@ -20,6 +20,8 @@ pub struct FileConfig {
     pub pen_only: bool,
     #[serde(default = "default_true")]
     pub grab_input: bool,
+    #[serde(default = "default_true")]
+    pub ssh_config: bool,
     #[serde(default)]
     pub no_palm_rejection: bool,
     pub palm_grace_ms: Option<u64>,
@@ -32,6 +34,7 @@ impl Default for FileConfig {
         Self {
             host: DEFAULT_HOST.into(),
             grab_input: true,
+            ssh_config: true,
             key_path: None,
             password: None,
             pen_device: None,

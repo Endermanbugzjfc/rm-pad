@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use ssh2::Session;
 
-use crate::config::{Auth, Config};
+use crate::config::{Auth, Config, SshTarget};
 use crate::grab;
 
 /// Watchdog file path on the tablet
@@ -31,9 +31,6 @@ impl GrabCleanup {
     }
 }
 
-const SSH_USER: &str = "root";
-const SSH_PORT: u16 = 22;
-
 /// Open an SSH connection and stream input from a device.
 pub fn open_input_stream(
     device_path: &str,
@@ -42,7 +39,7 @@ pub fn open_input_stream(
 ) -> Result<(GrabCleanup, ssh2::Channel), Box<dyn std::error::Error + Send + Sync>> {
     log::info!("Connecting to {}", config.host);
 
-    let session = connect_and_authenticate(config)?;
+    let session = connect(&config.ssh_target())?;
 
     if grab {
         prepare_grab(&session)?;
@@ -59,10 +56,16 @@ pub fn open_input_stream(
     Ok((GrabCleanup::new(session), channel))
 }
 
-fn connect_and_authenticate(
-    config: &Config,
-) -> Result<Session, Box<dyn std::error::Error + Send + Sync>> {
-    let addr = (config.host.as_str(), SSH_PORT)
+/// Open a TCP connection, perform the SSH handshake, and authenticate.
+fn connect(target: &SshTarget) -> Result<Session, Box<dyn std::error::Error + Send + Sync>> {
+    log::debug!(
+        "SSH target: {}@{}:{}",
+        target.user,
+        target.host,
+        target.port
+    );
+
+    let addr = (target.host.as_str(), target.port)
         .to_socket_addrs()?
         .next()
         .ok_or("Could not resolve host address")?;
@@ -71,27 +74,27 @@ fn connect_and_authenticate(
     let mut session = Session::new()?;
     session.set_tcp_stream(tcp);
     session.handshake()?;
-    authenticate(&mut session, &config.auth())?;
+    authenticate(&mut session, &target.user, &target.auth)?;
 
     Ok(session)
 }
 
 /// Connect to the device via SSH for device detection purposes.
-/// Returns None if connection fails (e.g., device not available).
 pub fn connect_for_detection(config: &Config) -> Result<Session, Box<dyn std::error::Error + Send + Sync>> {
-    connect_and_authenticate(config)
+    connect(&config.ssh_target())
 }
 
 fn authenticate(
     session: &mut Session,
+    user: &str,
     auth: &Auth,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     match auth {
         Auth::Key(path) => {
-            session.userauth_pubkey_file(SSH_USER, None, path.as_ref(), None)?;
+            session.userauth_pubkey_file(user, None, path.as_ref(), None)?;
         }
         Auth::Password(pass) => {
-            session.userauth_password(SSH_USER, pass)?;
+            session.userauth_password(user, pass)?;
         }
     }
 
@@ -121,16 +124,7 @@ fn build_stream_command(device_path: &str, grab: bool) -> String {
 /// Touch the watchdog file once. Blocks until success or error.
 /// This MUST be called before starting grabbers.
 pub fn touch_watchdog_once(config: &Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr = (config.host.as_str(), SSH_PORT)
-        .to_socket_addrs()?
-        .next()
-        .ok_or("Could not resolve host address")?;
-    let tcp = TcpStream::connect_timeout(&addr, SSH_TIMEOUT)?;
-
-    let mut session = Session::new()?;
-    session.set_tcp_stream(tcp);
-    session.handshake()?;
-    authenticate(&mut session, &config.auth())?;
+    let session = connect(&config.ssh_target())?;
 
     let mut channel = session.channel_session()?;
     channel.exec(&format!("touch {}", WATCHDOG_FILE))?;
@@ -148,8 +142,7 @@ pub fn touch_watchdog_once(config: &Config) -> Result<(), Box<dyn std::error::Er
 pub fn spawn_watchdog(config: &Config) -> Arc<AtomicBool> {
     let stop_flag = Arc::new(AtomicBool::new(false));
     let stop_flag_clone = stop_flag.clone();
-    let host = config.host.clone();
-    let auth = config.auth();
+    let target = config.ssh_target();
 
     thread::spawn(move || {
         log::info!("Watchdog thread started");
@@ -160,7 +153,7 @@ pub fn spawn_watchdog(config: &Config) -> Arc<AtomicBool> {
                 break;
             }
 
-            if let Err(e) = touch_watchdog(&host, &auth) {
+            if let Err(e) = touch_watchdog(&target) {
                 log::warn!("Watchdog touch failed: {}", e);
             }
 
@@ -171,17 +164,8 @@ pub fn spawn_watchdog(config: &Config) -> Arc<AtomicBool> {
     stop_flag
 }
 
-fn touch_watchdog(host: &str, auth: &Auth) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let addr = (host, SSH_PORT)
-        .to_socket_addrs()?
-        .next()
-        .ok_or("Could not resolve host address")?;
-    let tcp = TcpStream::connect_timeout(&addr, SSH_TIMEOUT)?;
-
-    let mut session = Session::new()?;
-    session.set_tcp_stream(tcp);
-    session.handshake()?;
-    authenticate(&mut session, auth)?;
+fn touch_watchdog(target: &SshTarget) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let session = connect(target)?;
 
     let mut channel = session.channel_session()?;
     channel.exec(&format!("touch {}", WATCHDOG_FILE))?;
