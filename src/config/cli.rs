@@ -3,6 +3,7 @@ use std::path::PathBuf;
 
 use crate::fit::FitMode;
 use crate::orientation::Orientation;
+use crate::tilt::TiltCorrectionMode;
 
 #[derive(Parser)]
 #[command(name = "rm-pad")]
@@ -60,6 +61,14 @@ pub struct Cli {
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
 
+    /// Pen tilt-offset correction (off, tilt, tilt-distance)
+    #[arg(long, value_parser = clap::value_parser!(TiltCorrectionMode))]
+    pub tilt_correction: Option<TiltCorrectionMode>,
+
+    /// Tilt-correction strength: effective lever length in pen digitizer units
+    #[arg(long)]
+    pub tilt_correction_gain: Option<f64>,
+    
     /// How the pen area fits the desktop: fill/stretch (default), contain/fit
     /// (letterbox, keep aspect), or cover (crop, keep aspect)
     #[arg(long, value_parser = clap::value_parser!(FitMode))]
