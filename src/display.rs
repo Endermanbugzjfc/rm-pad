@@ -2,8 +2,9 @@
 //!
 //! Enumeration happens once here (`enumerate`) so the pen-mapping strategies
 //! don't each call `DisplayInfo::all()`. `logical_rect` recovers the
-//! compositor's logical layout, and `desktop_bounds` gives the bounding box the
-//! pen is fitted against.
+//! compositor's logical layout, `find_display` resolves a user's screen
+//! selection to a specific display, and `desktop_bounds` gives the bounding box
+//! the pen is fitted against.
 
 use display_info::DisplayInfo;
 
@@ -54,6 +55,63 @@ pub fn logical_rect(d: &DisplayInfo) -> Rect {
         w: (d.width as f64 * s).round() as i64,
         h: (d.height as f64 * s).round() as i64,
     }
+}
+
+/// Find a display by index, exact name, or case-insensitive substring.
+pub fn find_display<'a>(displays: &'a [DisplayInfo], selection: &str) -> Option<&'a DisplayInfo> {
+    if let Ok(index) = selection.parse::<usize>() {
+        return displays.get(index);
+    }
+
+    let lower = selection.to_lowercase();
+    displays
+        .iter()
+        .find(|d| d.name.eq_ignore_ascii_case(selection))
+        .or_else(|| {
+            displays.iter().find(|d| {
+                d.name.to_lowercase().contains(&lower)
+                    || d.friendly_name.to_lowercase().contains(&lower)
+            })
+        })
+}
+
+/// Comma-separated display names, for diagnostics.
+pub fn display_names(displays: &[DisplayInfo]) -> String {
+    displays
+        .iter()
+        .map(|d| d.name.as_str())
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// Print connected displays for the `screens` subcommand.
+pub fn print_displays() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let Some(displays) = enumerate() else {
+        println!("No displays found");
+        return Ok(());
+    };
+
+    for (index, d) in displays.iter().enumerate() {
+        let friendly = if d.friendly_name.is_empty() || d.friendly_name == d.name {
+            String::new()
+        } else {
+            format!(" \"{}\"", d.friendly_name)
+        };
+        let r = logical_rect(d);
+        println!(
+            "{}: {}{} — {}x{} at ({}, {}){}",
+            index,
+            d.name,
+            friendly,
+            r.w,
+            r.h,
+            r.x,
+            r.y,
+            if d.is_primary { " [primary]" } else { "" }
+        );
+    }
+
+    Ok(())
 }
 
 /// The bounding box spanning every display, in logical coordinates.

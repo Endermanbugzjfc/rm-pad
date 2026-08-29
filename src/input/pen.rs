@@ -60,7 +60,7 @@ fn resolve_pen_inputs_maps(config: &Config) -> Vec<Box<dyn PenInputMap>> {
     let mut maps: Vec<Box<dyn PenInputMap>> = Vec::new();
 
     if let Some(displays) = &displays {
-        if let Some(fit_map) = fit::resolve(config.fit, displays) {
+        if let Some(fit_map) = fit::resolve(config.fit, &config.screen, displays) {
             maps.push(Box::new(fit_map));
         }
     }

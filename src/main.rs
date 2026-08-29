@@ -27,7 +27,12 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     
     init_logging(cli.command.is_some());
-    
+
+    // The screens subcommand is purely local, no SSH needed.
+    if matches!(cli.command, Some(Command::Screens)) {
+        return display::print_displays();
+    }
+
     // Detect device via SSH (required)
     let config_for_detection = Config::load(&cli, DeviceProfile::current());
     let session = ssh::connect_for_detection(&config_for_detection)?;
@@ -69,6 +74,8 @@ fn run_subcommand(
                 std::process::exit(1);
             }
         },
+        // Handled in main() before SSH detection.
+        Command::Screens => Ok(()),
     }
 }
 
@@ -79,14 +86,21 @@ fn log_startup_info(config: &Config) {
         format!("on (grace {}ms)", config.palm_grace_ms)
     };
 
+    let screen_info = if config.screen.is_empty() {
+        "all".to_string()
+    } else {
+        config.screen.join(", ")
+    };
+
     log::info!(
-        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}, fit={}",
+        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}, screen={}, fit={}",
         config.host,
         if config.run_pen() { &config.pen_device } else { "off" },
         if config.run_touch() { &config.touch_device } else { "off" },
         palm_info,
         config.grab_input,
         config.orientation,
+        screen_info,
         config.fit
     );
 }

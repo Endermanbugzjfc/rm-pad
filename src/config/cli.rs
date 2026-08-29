@@ -60,8 +60,15 @@ pub struct Cli {
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
 
-    /// How the pen area fits the desktop: fill/stretch (default), contain/fit
-    /// (letterbox, keep aspect), or cover (crop, keep aspect)
+    /// Screen(s) the pen area is fitted into: index or name (see the `screens`
+    /// subcommand). Repeat the flag to select several — the fit target is their
+    /// combined bounding box. Required whenever --fit is not fill/stretch.
+    #[arg(long)]
+    pub screen: Vec<String>,
+
+    /// How the pen area fits the selected screen(s): fill/stretch (default),
+    /// contain/fit (letterbox, keep aspect), or cover (crop, keep aspect).
+    /// Anything other than fill/stretch requires at least one --screen.
     #[arg(long, value_parser = clap::value_parser!(FitMode))]
     pub fit: Option<FitMode>,
 
@@ -77,4 +84,6 @@ pub enum Command {
         /// Device to dump: "touch" or "pen"
         device: String,
     },
+    /// List connected screens (for the --screen option)
+    Screens,
 }

@@ -22,7 +22,9 @@
 //!
 //! Because the warp only depends on the pen-vs-target aspect ratio, the same
 //! [`FitMap`] composes whether the downstream stretch is the compositor (whole
-//! desktop) or a display map.
+//! desktop) or a display map. The target is the bounding box of the screens
+//! selected via `--screen` (see [`resolve`]), so a non-fill fit is only
+//! meaningful once at least one screen is chosen.
 
 use serde::Deserialize;
 use std::fmt;
@@ -127,23 +129,59 @@ impl PenInputMap for FitMap {
     }
 }
 
-/// Resolve the configured fit mode to a coordinate mapping over the desktop.
+/// Resolve the configured fit mode to a coordinate mapping over the selected
+/// screens.
 ///
-/// `Fill` needs no warp (`None`). `Contain`/`Cover` fit against the whole
-/// desktop bounding box. (Forward-compat: once merged with screen selection,
-/// this would instead take the selected display's dimensions.)
-pub fn resolve(fit: FitMode, displays: &[DisplayInfo]) -> Option<FitMap> {
+/// `Fill` needs no warp (`None`). `Contain`/`Cover` fit against the bounding
+/// box of the displays named in `screens` — the same selection the pen is
+/// ultimately mapped onto — so the aspect correction targets exactly that
+/// region rather than the whole desktop. `screens` is guaranteed non-empty for
+/// a non-fill fit by [`Config::validate`](crate::config); if nothing matches at
+/// runtime the fit is disabled (`None`) so the pen falls back to spanning the
+/// whole desktop.
+pub fn resolve(fit: FitMode, screens: &[String], displays: &[DisplayInfo]) -> Option<FitMap> {
     if fit == FitMode::Fill {
         return None;
     }
 
-    let bounds = display::desktop_bounds(displays);
+    let selected = select_displays(screens, displays);
+    if selected.is_empty() {
+        log::error!(
+            "No display matches the configured screen(s) [{}] (available: {}), fit disabled",
+            screens.join(", "),
+            display::display_names(displays),
+        );
+        return None;
+    }
+
+    let bounds = display::desktop_bounds(&selected);
     Some(FitMap {
         fit,
         target_w: bounds.w,
         target_h: bounds.h,
-        label: format!("{} (desktop {}x{})", fit, bounds.w, bounds.h),
+        label: format!("{} ({} screen(s) {}x{})", fit, selected.len(), bounds.w, bounds.h),
     })
+}
+
+/// Resolve screen selections to the matching displays, de-duplicated and in
+/// enumeration order. Unmatched selections are warned about and skipped.
+fn select_displays(screens: &[String], displays: &[DisplayInfo]) -> Vec<DisplayInfo> {
+    let mut selected: Vec<DisplayInfo> = Vec::new();
+    for sel in screens {
+        match display::find_display(displays, sel) {
+            Some(d) => {
+                if !selected.iter().any(|s| s.name == d.name) {
+                    selected.push(d.clone());
+                }
+            }
+            None => log::warn!(
+                "No display matches screen '{}' (available: {})",
+                sel,
+                display::display_names(displays),
+            ),
+        }
+    }
+    selected
 }
 
 impl fmt::Display for FitMode {
@@ -232,6 +270,14 @@ mod tests {
 
     #[test]
     fn resolve_fill_is_none() {
-        assert!(resolve(FitMode::Fill, &[]).is_none());
+        // Fill short-circuits before any screen lookup.
+        assert!(resolve(FitMode::Fill, &[], &[]).is_none());
+        assert!(resolve(FitMode::Fill, &["0".into()], &[]).is_none());
+    }
+
+    #[test]
+    fn resolve_non_fill_without_matching_display_is_none() {
+        // No displays to match against => fit disabled (falls back to desktop).
+        assert!(resolve(FitMode::Contain, &["HDMI-1".into()], &[]).is_none());
     }
 }

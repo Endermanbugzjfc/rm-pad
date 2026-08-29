@@ -10,6 +10,10 @@ host = "10.11.99.1"
 # no_palm_rejection = false
 # palm_grace_ms = 500
 # orientation = "landscape-right"
-# fit = "fill"        # pen-to-desktop mapping: "fill" (stretch, default),
+# screen = ["HDMI-1"] # screen(s) the fit is confined to; index or name (see
+                      # the `screens` subcommand). List several to fit their
+                      # combined bounding box. Required for a non-"fill" fit.
+# fit = "fill"        # pen-to-screen mapping: "fill" (stretch, default),
                       # "contain" (keep aspect, letterboxed), or "cover"
-                      # (keep aspect, edges cropped)
+                      # (keep aspect, edges cropped). Anything but "fill"
+                      # requires at least one `screen`.

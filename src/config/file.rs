@@ -27,6 +27,8 @@ pub struct FileConfig {
     #[serde(default)]
     pub orientation: Orientation,
     #[serde(default)]
+    pub screen: Vec<String>,
+    #[serde(default)]
     pub fit: FitMode,
 }
 
@@ -44,6 +46,7 @@ impl Default for FileConfig {
             no_palm_rejection: false,
             palm_grace_ms: None,
             orientation: Orientation::default(),
+            screen: Vec::new(),
             fit: FitMode::default(),
         }
     }

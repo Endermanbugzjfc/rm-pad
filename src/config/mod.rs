@@ -30,6 +30,9 @@ pub struct Config {
     pub no_palm_rejection: bool,
     pub palm_grace_ms: u64,
     pub orientation: Orientation,
+    /// Screen selections the fit target is confined to. Empty means no
+    /// selection (fit is only valid when this is non-empty).
+    pub screen: Vec<String>,
     pub fit: FitMode,
 }
 
@@ -68,6 +71,12 @@ impl Config {
                 .or(file_config.palm_grace_ms)
                 .unwrap_or(500),
             orientation: cli.orientation.unwrap_or(file_config.orientation),
+            // A repeatable flag: CLI selections replace the file's when given.
+            screen: if cli.screen.is_empty() {
+                file_config.screen
+            } else {
+                cli.screen.clone()
+            },
             fit: cli.fit.unwrap_or(file_config.fit),
         }
     }
@@ -94,6 +103,11 @@ impl Config {
         }
         if !self.run_pen() && !self.run_touch() {
             return Err("No input device enabled");
+        }
+        // Fit warps the pen into the selected screens' bounding box, so a
+        // non-fill fit needs at least one screen to fit against.
+        if self.fit != FitMode::Fill && self.screen.is_empty() {
+            return Err("--fit (other than fill) requires at least one --screen");
         }
         Ok(())
     }
