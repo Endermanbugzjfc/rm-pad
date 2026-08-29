@@ -126,7 +126,7 @@ You can also use environment variables:
 - **palm_grace_ms**: Palm rejection grace period in milliseconds (default: 500)
 - **orientation**: Screen orientation - `portrait`, `landscape-right` (default), `landscape-left`, or `inverted`
 - **tilt_correction**: Cancel the tilt-induced hover-vs-contact pen offset - `off` (default), `tilt`, or `tilt-distance` (ramps the correction off as the pen lifts away)
-- **tilt_correction_gain**: Correction strength, i.e. the effective coil-to-nib lever length in pen digitizer units (default: `0`, off). Tune empirically; use a negative value to flip direction
+- **tilt_correction_gain**: Correction strength, i.e. the effective coil-to-nib lever length in pen digitizer units (default: `1.0`, off). Tune empirically; use a negative value to flip direction
 
 All options can also be set via command-line flags. Run `rm-pad --help` for details.
 

@@ -73,7 +73,7 @@ impl Config {
             tilt_correction_gain: cli
                 .tilt_correction_gain
                 .or(file_config.tilt_correction_gain)
-                .unwrap_or(0.0),
+                .unwrap_or(1.0),
         }
     }
 
