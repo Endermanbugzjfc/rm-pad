@@ -42,13 +42,6 @@ nix develop
 nix run .#rm-pad -- --help
 ```
 
-For the latest prebuilt x86_64 binary (no compiling), use the `tag-bin` branch,
-which pins the newest upstream release and refreshes it daily:
-
-```bash
-nix run github:Endermanbugzjfc/rm-pad/tag-bin -- --help
-```
-
 ### Building from source
 
 You'll need Rust and C cross-compilers for ARM:
