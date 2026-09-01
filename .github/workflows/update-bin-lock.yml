@@ -23,8 +23,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: tag-bin
+
+      - name: Ensure tag-bin branch exists
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin tag-bin >/dev/null 2>&1; then
+            git fetch origin tag-bin
+            git checkout tag-bin
+          else
+            echo "tag-bin branch not found, creating it"
+            git checkout -b tag-bin
+            git push -u origin tag-bin
+          fi
 
       - name: Resolve latest release artefact
         id: resolve
