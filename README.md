@@ -46,7 +46,7 @@ For the latest prebuilt x86_64 binary (no compiling), use the `tag-bin` branch,
 which pins the newest upstream release and refreshes it daily:
 
 ```bash
-nix run github:Endermanbugzjfc/rm-pad/tag-bin -- --help
+nix run github:alvesvaren/rm-pad/tag-bin -- --help
 ```
 
 ### Building from source
