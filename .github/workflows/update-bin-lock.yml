@@ -66,13 +66,8 @@ jobs:
 
       - name: Commit if changed
         run: |
-          set -euo pipefail
-          if git diff --quiet -- bin-lock.json; then
-            echo "bin-lock.json already up to date"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bin-lock.json
-          git commit -m "chore(tag-bin): lock $(jq -r .tag bin-lock.json) release binary [skip ci]"
+          git add bin-lock.json || true
+          git commit -m "chore(tag-bin): lock $(jq -r .tag bin-lock.json) release binary [skip ci]" || true
           git push
