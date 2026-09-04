@@ -1,13 +1,9 @@
 {
   lib,
   stdenv,
+  callPackage,
   fetchurl,
   autoPatchelfHook,
-  openssl,
-  libxcb,
-  wayland,
-  libxkbcommon,
-  zlib,
   # Pinned release artefact, kept up to date by .github/workflows/update-bin-lock.yml
   # (see bin-lock.json). Purely evaluatable, so this works via
   # `nix run github:alvesvaren/rm-pad/tag-bin`.
@@ -16,15 +12,10 @@
   sha256,
 }:
 let
-  # Libraries the released binary links against: openssl (ssh2), zlib
-  # (libz-sys), libxcb/wayland/libxkbcommon (display-info).
-  runtimeLibs = [
-    openssl
-    libxcb
-    wayland
-    libxkbcommon
-    zlib
-  ];
+  # The released binary links against the same libraries rm-pad builds against
+  # (openssl for ssh2, zlib for libz-sys, libxcb/wayland/libxkbcommon for
+  # display-info), so reuse the shared list.
+  inherit (callPackage ./common.nix { }) runtimeLibs;
 in
 assert lib.assertMsg (stdenv.hostPlatform.system == "x86_64-linux") ''
   rm-pad-bin: prebuilt binaries are only published for x86_64-linux (got ${stdenv.hostPlatform.system}).
