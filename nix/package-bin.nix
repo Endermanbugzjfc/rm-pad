@@ -15,8 +15,13 @@ let
   # The released binary links against the same libraries rm-pad builds against
   # (openssl for ssh2, zlib for libz-sys, libxcb/wayland/libxkbcommon for
   # display-info), so reuse the shared list.
-  inherit (callPackage ./common.nix { }) runtimeLibs;
+  inherit (callPackage ./common.nix { }) runtimeLibs onTagBinBranch;
 in
+assert lib.assertMsg onTagBinBranch ''
+  rm-pad-bin: the prebuilt binary package is only pinned on the `tag-bin` branch.
+  Use it from there, e.g.
+    nix run github:alvesvaren/rm-pad/tag-bin
+  To build rm-pad from source, use the `rm-pad` package on the `main` branch instead.'';
 assert lib.assertMsg (stdenv.hostPlatform.system == "x86_64-linux") ''
   rm-pad-bin: prebuilt binaries are only published for x86_64-linux (got ${stdenv.hostPlatform.system}).
   Build rm-pad from source (the `rm-pad` package on the `nix` branch) instead.'';

@@ -10,6 +10,10 @@
 let
   common = callPackage ./common.nix { };
 in
+assert lib.assertMsg (!common.onTagBinBranch) ''
+  rm-pad: the `tag-bin` branch only carries the prebuilt binary package (rm-pad-bin).
+  To build rm-pad from source, check out the source tag / `main` branch instead, e.g.
+    nix run github:alvesvaren/rm-pad#rm-pad'';
 rustPlatform.buildRustPackage ({
   pname = "rm-pad";
   version =
