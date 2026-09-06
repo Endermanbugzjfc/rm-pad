@@ -1,125 +1,143 @@
-//! Shared display-geometry helpers over `display-info`.
-//!
-//! Enumeration happens once here (`enumerate`) so the pen-mapping strategies
-//! don't each call `DisplayInfo::all()`. `logical_rect` recovers the
-//! compositor's logical layout, `find_display` resolves a user's screen
-//! selection to a specific display, and `desktop_bounds` gives the bounding box
-//! the pen is fitted against.
+use core::fmt;
+use std::str::FromStr;
 
-use display_info::DisplayInfo;
+use serde::Deserialize;
 
-/// A display rectangle in the compositor's logical coordinate space.
 #[derive(Debug, Clone, Copy)]
-pub struct Rect {
-    pub x: i64,
-    pub y: i64,
-    pub w: i64,
-    pub h: i64,
+pub enum SizeData {
+    AspectRatio(AspectRatio),
+    Resolution(Resolution),
 }
 
-/// Enumerate connected displays, or `None` if none are available.
-///
-/// This is the single `DisplayInfo::all()` call site: it logs and returns
-/// `None` on error or when no displays are reported, so callers have one place
-/// that handles "display info is unavailable" and fall back to whole-desktop
-/// behavior.
-pub fn enumerate() -> Option<Vec<DisplayInfo>> {
-    match DisplayInfo::all() {
-        Ok(d) if !d.is_empty() => Some(d),
-        Ok(_) => {
-            log::warn!("No displays detected, pen will span the whole desktop");
-            None
-        }
-        Err(e) => {
-            log::warn!(
-                "Failed to enumerate displays ({}), pen will span the whole desktop",
-                e
-            );
-            None
+impl fmt::Display for SizeData {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::AspectRatio(ratio) => write!(f, "{}:{}", ratio.0, ratio.1),
+            Self::Resolution(res) => write!(f, "{}x{}", res.0, res.1),
         }
     }
 }
 
-/// Recover a display's logical rectangle from `display-info`.
-///
-/// `display-info` reports x/y/width/height divided by the display's own scale,
-/// so a fractional/HiDPI monitor comes back smaller and mis-placed (e.g. a
-/// 1600x1000-at-(0,1080) output is reported as 800x500-at-(0,540)). Multiplying
-/// by `scale_factor` restores the compositor's logical layout, which is the
-/// space the pen is mapped into.
-pub fn logical_rect(d: &DisplayInfo) -> Rect {
-    let s = if d.scale_factor > 0.0 { d.scale_factor as f64 } else { 1.0 };
-    Rect {
-        x: (d.x as f64 * s).round() as i64,
-        y: (d.y as f64 * s).round() as i64,
-        w: (d.width as f64 * s).round() as i64,
-        h: (d.height as f64 * s).round() as i64,
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(try_from = "&str")]
+pub struct AspectRatio(u32, u32);
+
+impl AspectRatio {
+    pub fn new(w: u32, h: u32) -> Self {
+        let hcf = find_hcf(w, h);
+        Self(w / hcf, h / hcf)
+    }
+
+    pub fn get_width(&self) -> u32 {
+        self.0
+    }
+
+    pub fn get_height(&self) -> u32 {
+        self.1
+    }
+
+    pub fn get_fraction(&self) -> f32 {
+        self.get_width() as f32 / self.get_height() as f32
     }
 }
 
-/// Find a display by index, exact name, or case-insensitive substring.
-pub fn find_display<'a>(displays: &'a [DisplayInfo], selection: &str) -> Option<&'a DisplayInfo> {
-    if let Ok(index) = selection.parse::<usize>() {
-        return displays.get(index);
+impl fmt::Display for AspectRatio {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.0, self.1)
+    }
+}
+
+impl TryFrom<&str> for AspectRatio {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match match_two_non_zero_u32(s, ':') {
+            Some((w, h)) => Ok(Self::new(w, h)),
+            None => Err(format!(
+                "Invalid aspect ratio '{}'. Valid format: 'WIDTH:HEIGHT'. Valid range: non-zero positive 32 bit integers",
+                s
+            ))
+        }
+    }
+}
+
+impl FromStr for AspectRatio {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(try_from = "&str")]
+pub struct Resolution(u32, u32);
+
+impl Resolution {
+    pub fn new(width: u32, height: u32) -> Self {
+        Self(width, height)
     }
 
-    let lower = selection.to_lowercase();
-    displays
-        .iter()
-        .find(|d| d.name.eq_ignore_ascii_case(selection))
-        .or_else(|| {
-            displays.iter().find(|d| {
-                d.name.to_lowercase().contains(&lower)
-                    || d.friendly_name.to_lowercase().contains(&lower)
-            })
-        })
-}
-
-/// Comma-separated display names, for diagnostics.
-pub fn display_names(displays: &[DisplayInfo]) -> String {
-    displays
-        .iter()
-        .map(|d| d.name.as_str())
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
-/// Print connected displays for the `screens` subcommand.
-pub fn print_displays() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let Some(displays) = enumerate() else {
-        println!("No displays found");
-        return Ok(());
-    };
-
-    for (index, d) in displays.iter().enumerate() {
-        let friendly = if d.friendly_name.is_empty() || d.friendly_name == d.name {
-            String::new()
-        } else {
-            format!(" \"{}\"", d.friendly_name)
-        };
-        let r = logical_rect(d);
-        println!(
-            "{}: {}{} — {}x{} at ({}, {}){}",
-            index,
-            d.name,
-            friendly,
-            r.w,
-            r.h,
-            r.x,
-            r.y,
-            if d.is_primary { " [primary]" } else { "" }
-        );
+    pub fn get_width(&self) -> u32 {
+        self.0
     }
 
-    Ok(())
+    pub fn get_height(&self) -> u32 {
+        self.1
+    }
 }
 
-/// The bounding box spanning every display, in logical coordinates.
-pub fn desktop_bounds(displays: &[DisplayInfo]) -> Rect {
-    let rects: Vec<Rect> = displays.iter().map(logical_rect).collect();
-    let min_x = rects.iter().map(|r| r.x).min().unwrap();
-    let min_y = rects.iter().map(|r| r.y).min().unwrap();
-    let max_x = rects.iter().map(|r| r.x + r.w).max().unwrap();
-    let max_y = rects.iter().map(|r| r.y + r.h).max().unwrap();
-    Rect { x: min_x, y: min_y, w: max_x - min_x, h: max_y - min_y }
+impl fmt::Display for Resolution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.0, self.1)
+    }
+}
+
+impl TryFrom<&str> for Resolution {
+    type Error = String;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        match match_two_non_zero_u32(&s.to_lowercase(), 'x') {
+            Some((w, h)) => Ok(Self::new(w, h)),
+            None => Err(format!(
+                "Invalid resolution '{}'. Valid format: 'WIDTHxHEIGHT'. Valid range: non-zero positive 32 bit integers",
+                s
+            ))
+        }
+    }
+}
+
+impl FromStr for Resolution {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+
+fn match_two_non_zero_u32(input: &str, delimiter: char) -> Option<(u32, u32)> {
+    let clean_input = input.replace(char::is_whitespace, "");
+    let ratio_input: Vec<&str> = clean_input.split(delimiter).collect();
+    if let [w_input, h_input] = ratio_input.as_slice() {
+        let w_parse = w_input.parse::<u32>().ok().filter(|n| *n != 0);
+        let h_parse = h_input.parse::<u32>().ok().filter(|n| *n != 0);
+        if let Some((w, h)) = w_parse.zip(h_parse) {
+            return Some((w, h));
+        }
+    }
+
+    None
+}
+
+fn find_hcf<T>(mut a: T, mut b: T) -> T
+where
+    T: PartialEq + From<u8> + Copy + std::ops::Rem<Output = T>
+{
+    while b != 0.into() {
+        let tmp = b;
+        b = a % b;
+        a = tmp;
+    }
+
+    a
 }

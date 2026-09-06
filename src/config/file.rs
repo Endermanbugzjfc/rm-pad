@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+use crate::display::{AspectRatio, Resolution};
 use crate::fit::FitMode;
 use crate::orientation::Orientation;
 
@@ -27,9 +28,11 @@ pub struct FileConfig {
     #[serde(default)]
     pub orientation: Orientation,
     #[serde(default)]
-    pub screen: Vec<String>,
-    #[serde(default)]
     pub fit: FitMode,
+    #[serde(default)]
+    pub aspect_ratio: Option<AspectRatio>,
+    #[serde(default)]
+    pub resolution: Option<Resolution>,
 }
 
 impl Default for FileConfig {
@@ -46,8 +49,9 @@ impl Default for FileConfig {
             no_palm_rejection: false,
             palm_grace_ms: None,
             orientation: Orientation::default(),
-            screen: Vec::new(),
             fit: FitMode::default(),
+            aspect_ratio: None,
+            resolution: None,
         }
     }
 }

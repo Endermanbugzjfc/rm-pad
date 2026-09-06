@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+use crate::display::{AspectRatio, Resolution};
 use crate::fit::FitMode;
 use crate::orientation::Orientation;
 
@@ -59,18 +60,17 @@ pub struct Cli {
     /// Screen orientation (portrait, landscape-right, landscape-left, inverted)
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
-
-    /// Screen(s) the pen area is fitted into: index or name (see the `screens`
-    /// subcommand). Repeat the flag to select several — the fit target is their
-    /// combined bounding box. Required whenever --fit is not fill/stretch.
-    #[arg(long)]
-    pub screen: Vec<String>,
-
     /// How the pen area fits the selected screen(s): fill/stretch (default),
     /// contain/fit (letterbox, keep aspect), or cover (crop, keep aspect).
     /// Anything other than fill/stretch requires at least one --screen.
     #[arg(long, value_parser = clap::value_parser!(FitMode))]
     pub fit: Option<FitMode>,
+
+    #[arg(long, value_parser = clap::value_parser!(AspectRatio), conflicts_with = "resolution")]
+    pub aspect_ratio: Option<AspectRatio>,
+
+    #[arg(long, value_parser = clap::value_parser!(Resolution))]
+    pub resolution: Option<Resolution>,
 
     /// Path to config file
     #[arg(long, env = "RMPAD_CONFIG")]
@@ -84,6 +84,4 @@ pub enum Command {
         /// Device to dump: "touch" or "pen"
         device: String,
     },
-    /// List connected screens (for the --screen option)
-    Screens,
 }

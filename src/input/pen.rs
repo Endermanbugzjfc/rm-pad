@@ -7,7 +7,7 @@ use evdevil::{AbsInfo, Bus, InputId, InputProp};
 
 use crate::config::Config;
 use crate::device::DeviceProfile;
-use crate::display;
+use crate::display::SizeData;
 use crate::fit;
 use crate::palm::SharedPalmState;
 use crate::pen_map::{PenInputMap, PenInputPipeline};
@@ -56,13 +56,14 @@ fn create_pen_device(
 }
 
 fn resolve_pen_inputs_maps(config: &Config) -> Vec<Box<dyn PenInputMap>> {
-    let displays = display::enumerate();
     let mut maps: Vec<Box<dyn PenInputMap>> = Vec::new();
 
-    if let Some(displays) = &displays {
-        if let Some(fit_map) = fit::resolve(config.fit, &config.screen, displays) {
-            maps.push(Box::new(fit_map));
-        }
+    let size_data = config.aspect_ratio
+        .map(|a| SizeData::AspectRatio(a))
+        .or(config.resolution
+            .map(|r| SizeData::Resolution(r)));
+    if let Some(fit_map) = fit::resolve(config.fit, size_data) {
+        maps.push(Box::new(fit_map));
     }
 
     // Add more strategies (PenInputMap) when needed.

@@ -30,9 +30,7 @@ use serde::Deserialize;
 use std::fmt;
 use std::str::FromStr;
 
-use display_info::DisplayInfo;
-
-use crate::display;
+use crate::display::{AspectRatio, SizeData};
 use crate::pen_map::PenInputMap;
 
 /// How the pen's active area is fitted into the target.
@@ -49,6 +47,21 @@ pub enum FitMode {
 }
 
 impl FitMode {
+    fn bound_tablet_resolution_to_aspect_ratio(&self, w: i32, h: i32, ratio: AspectRatio) -> (i64, i64) {
+        let mut w = w as i64;
+        let mut h = h as i64;
+        let proportion = (w as f32 / h as f32) / (ratio.get_fraction());
+
+        let (longest, shortest) = if w > h { (&mut w, &mut h) } else { (&mut h, &mut w) };
+        match self {
+            Self::Fill => {},
+            Self::Contain => *longest = (*longest as f32 * proportion) as i64,
+            Self::Cover => *shortest = (*shortest as f32 * proportion) as i64,
+        };
+
+        (w, h)
+    }
+
     /// Warp a pen point in `0..=in_*` space so a downstream linear stretch onto
     /// a target of aspect `target_w:target_h` produces this fit mode.
     ///
@@ -101,20 +114,24 @@ fn warp_axis(coord: i64, in_max: i64, (a, b): (i64, i64)) -> i64 {
 #[derive(Debug, Clone)]
 pub struct FitMap {
     fit: FitMode,
-    target_w: i64,
-    target_h: i64,
+    size_data: SizeData,
     label: String,
 }
 
 impl PenInputMap for FitMap {
     fn map(&self, x: i32, y: i32, in_x_max: i32, in_y_max: i32) -> (i32, i32) {
+        let (target_w, target_h) = match self.size_data {
+            SizeData::AspectRatio(ratio) => self.fit.bound_tablet_resolution_to_aspect_ratio(in_x_max, in_y_max, ratio),
+            SizeData::Resolution(res) => (res.get_width() as i64, res.get_height() as i64),
+        };
+
         let (ox, oy) = self.fit.warp(
             x as i64,
             y as i64,
             in_x_max as i64,
             in_y_max as i64,
-            self.target_w,
-            self.target_h,
+            target_w,
+            target_h,
         );
         (ox as i32, oy as i32)
     }
@@ -129,59 +146,22 @@ impl PenInputMap for FitMap {
     }
 }
 
-/// Resolve the configured fit mode to a coordinate mapping over the selected
-/// screens.
+/// Resolve the configured fit mode to a coordinate mapping over the given
+/// size data.
 ///
 /// `Fill` needs no warp (`None`). `Contain`/`Cover` fit against the bounding
-/// box of the displays named in `screens` — the same selection the pen is
-/// ultimately mapped onto — so the aspect correction targets exactly that
-/// region rather than the whole desktop. `screens` is guaranteed non-empty for
-/// a non-fill fit by [`Config::validate`](crate::config); if nothing matches at
-/// runtime the fit is disabled (`None`) so the pen falls back to spanning the
-/// whole desktop.
-pub fn resolve(fit: FitMode, screens: &[String], displays: &[DisplayInfo]) -> Option<FitMap> {
+/// box of the given size data.
+pub fn resolve(fit: FitMode, size_data: Option<SizeData>) -> Option<FitMap> {
     if fit == FitMode::Fill {
         return None;
     }
+    let size_data = size_data.expect("either is Some");
 
-    let selected = select_displays(screens, displays);
-    if selected.is_empty() {
-        log::error!(
-            "No display matches the configured screen(s) [{}] (available: {}), fit disabled",
-            screens.join(", "),
-            display::display_names(displays),
-        );
-        return None;
-    }
-
-    let bounds = display::desktop_bounds(&selected);
     Some(FitMap {
         fit,
-        target_w: bounds.w,
-        target_h: bounds.h,
-        label: format!("{} ({} screen(s) {}x{})", fit, selected.len(), bounds.w, bounds.h),
+        size_data,
+        label: format!("{fit} ({size_data})"),
     })
-}
-
-/// Resolve screen selections to the matching displays, de-duplicated and in
-/// enumeration order. Unmatched selections are warned about and skipped.
-fn select_displays(screens: &[String], displays: &[DisplayInfo]) -> Vec<DisplayInfo> {
-    let mut selected: Vec<DisplayInfo> = Vec::new();
-    for sel in screens {
-        match display::find_display(displays, sel) {
-            Some(d) => {
-                if !selected.iter().any(|s| s.name == d.name) {
-                    selected.push(d.clone());
-                }
-            }
-            None => log::warn!(
-                "No display matches screen '{}' (available: {})",
-                sel,
-                display::display_names(displays),
-            ),
-        }
-    }
-    selected
 }
 
 impl fmt::Display for FitMode {
@@ -212,10 +192,12 @@ impl FromStr for FitMode {
 
 #[cfg(test)]
 mod tests {
+    use crate::display::Resolution;
+
     use super::*;
 
-    fn fitmap(fit: FitMode, tw: i64, th: i64) -> FitMap {
-        FitMap { fit, target_w: tw, target_h: th, label: "test".into() }
+    fn fitmap(fit: FitMode, tw: u32, th: u32) -> FitMap {
+        FitMap { fit, size_data: SizeData::Resolution(Resolution::new(tw, th)), label: "test".into() }
     }
 
     // A wide 2:1 pen; downstream target square (1:1). The x axis is
@@ -266,18 +248,5 @@ mod tests {
         assert_eq!(m.map(0, 0, IN_X, IN_Y), (0, 0));
         assert_eq!(m.map(1234, 567, IN_X, IN_Y), (1234, 567));
         assert_eq!(m.map(IN_X, IN_Y, IN_X, IN_Y), (IN_X, IN_Y));
-    }
-
-    #[test]
-    fn resolve_fill_is_none() {
-        // Fill short-circuits before any screen lookup.
-        assert!(resolve(FitMode::Fill, &[], &[]).is_none());
-        assert!(resolve(FitMode::Fill, &["0".into()], &[]).is_none());
-    }
-
-    #[test]
-    fn resolve_non_fill_without_matching_display_is_none() {
-        // No displays to match against => fit disabled (falls back to desktop).
-        assert!(resolve(FitMode::Contain, &["HDMI-1".into()], &[]).is_none());
     }
 }
