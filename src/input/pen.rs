@@ -1,3 +1,4 @@
+use std::arch::x86_64::_mm512_add_ps;
 use std::io::Read;
 use std::time::Instant;
 
@@ -132,9 +133,12 @@ pub fn run_pen(
             .iter()
             .rfind(|e| e.event_type().raw() == EV_ABS && e.raw_code() == ABS_PRESSURE)
             .map(|e| e.raw_value())
+            // Cubic easing: https://www.desmos.com/calculator/nwzag7aim9
+            // .map(|e| (e / 256).pow(3))
             .unwrap_or(0);
 
         let now_touching = pressure > 0;
+        println!("{pressure}");
         update_palm_state(&palm, now_touching);
 
         if now_touching != touch_down {
