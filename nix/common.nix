@@ -29,6 +29,11 @@ in
 {
   inherit armv7Cc aarch64Cc;
 
+  # bin-lock.json only exists on the `tag-bin` branch, which pins the prebuilt
+  # release binary. The source packages live on the `nix` branch (no lock file),
+  # so its presence tells the two package expressions which branch they are on.
+  onTagBinBranch = builtins.pathExists ./bin-lock.json;
+
   # Passed to nativeBuildInputs wherever build.rs runs.
   crossCompilers = [ armv7Cc aarch64Cc ];
 
