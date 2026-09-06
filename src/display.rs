@@ -35,7 +35,7 @@ impl fmt::Display for SizeData {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(try_from = "&str")]
+#[serde(try_from = "String")]
 pub struct AspectRatio(u32, u32);
 
 impl AspectRatio {
@@ -81,8 +81,19 @@ impl FromStr for AspectRatio {
     }
 }
 
+// serde deserializers (toml, json) hand out owned strings, so `try_from`
+// must take `String`; a borrowed-only impl fails with "expected a borrowed
+// string" on every file config.
+impl TryFrom<String> for AspectRatio {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
 #[derive(Debug, Clone, Copy, Deserialize)]
-#[serde(try_from = "&str")]
+#[serde(try_from = "String")]
 pub struct Resolution(u32, u32);
 
 impl Resolution {
@@ -124,6 +135,46 @@ impl FromStr for Resolution {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::try_from(s)
+    }
+}
+
+impl TryFrom<String> for Resolution {
+    type Error = String;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(s.as_str())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    struct Cfg {
+        aspect_ratio: AspectRatio,
+        resolution: Resolution,
+    }
+
+    /// Regression: deserializing from an owned-string source (toml/json)
+    /// used to fail with "expected a borrowed string".
+    #[test]
+    fn deserializes_from_owned_strings() {
+        let cfg: Cfg = serde::Deserialize::deserialize(
+            serde::de::value::MapDeserializer::<_, serde::de::value::Error>::new(
+                vec![
+                    ("aspect_ratio", "16:9".to_string()),
+                    ("resolution", "1920x1080".to_string()),
+                ]
+                .into_iter(),
+            ),
+        )
+        .unwrap();
+        let ratio = cfg.aspect_ratio;
+        assert_eq!((ratio.get_width(), ratio.get_height()), (16, 9));
+        let res = cfg.resolution;
+        assert_eq!((res.get_width(), res.get_height()), (1920, 1080));
     }
 }
 
