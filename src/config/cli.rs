@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use crate::display::{AspectRatio, Resolution};
 use crate::fit::FitMode;
 use crate::orientation::Orientation;
+use crate::tilt::TiltCorrectionMode;
 
 #[derive(Parser)]
 #[command(name = "rm-pad")]
@@ -75,6 +76,14 @@ pub struct Cli {
     /// 1920x1080). Mutually exclusive with --aspect-ratio.
     #[arg(long, value_parser = clap::value_parser!(Resolution))]
     pub resolution: Option<Resolution>,
+
+    /// Pen tilt-offset correction (off, tilt, tilt-distance)
+    #[arg(long, value_parser = clap::value_parser!(TiltCorrectionMode))]
+    pub tilt_correction: Option<TiltCorrectionMode>,
+
+    /// Tilt-correction strength: effective lever length in pen digitizer units
+    #[arg(long)]
+    pub tilt_correction_gain: Option<f64>,
 
     /// Path to config file
     #[arg(long, env = "RMPAD_CONFIG")]

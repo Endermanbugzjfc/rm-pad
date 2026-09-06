@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::display::{AspectRatio, Resolution};
 use crate::fit::FitMode;
 use crate::orientation::Orientation;
+use crate::tilt::TiltCorrectionMode;
 
 const DEFAULT_HOST: &str = "10.11.99.1";
 
@@ -28,6 +29,8 @@ pub struct FileConfig {
     #[serde(default)]
     pub orientation: Orientation,
     #[serde(default)]
+    pub tilt_correction: TiltCorrectionMode,
+    pub tilt_correction_gain: Option<f64>,
     pub fit: FitMode,
     #[serde(default)]
     pub aspect_ratio: Option<AspectRatio>,
@@ -49,6 +52,8 @@ impl Default for FileConfig {
             no_palm_rejection: false,
             palm_grace_ms: None,
             orientation: Orientation::default(),
+            tilt_correction: TiltCorrectionMode::default(),
+            tilt_correction_gain: None,
             fit: FitMode::default(),
             aspect_ratio: None,
             resolution: None,

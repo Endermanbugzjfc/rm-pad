@@ -7,6 +7,7 @@ Features:
 - Touch input (multi-touch gestures, tapping and moving)
 - Configurable palm rejection (disables touch input for a configurable grace period if any pen input is detected, default 500ms)
 - Screen orientation support (portrait, landscape-right, landscape-left, inverted)
+- Optional tilt correction: cancels the small offset between the hover cursor and where the pen actually draws, caused by holding the pen at an angle
 - Fit modes (`--fit`): how the pen area maps onto the selected screen(s) — `fill` (stretch, default), `contain` (keep aspect, letterboxed), or `cover` (keep aspect, edges cropped). A non-`fill` fit targets the screen(s) chosen with `--screen` (repeatable; `rm-pad screens` lists them). Baked into the virtual device's own coordinate space, so it applies uniformly across every program — including apps that ignore the compositor's tablet-to-output mapping (e.g. osu!lazer) and so can't be corrected by a system-level Hyprland config alone
 - Input grab (enabled by default): A small helper binary is uploaded to `/tmp` on the tablet and uses `EVIOCGRAB` to exclusively grab the input devices. The tablet UI (xochitl) keeps running but receives no pen/touch events. The grab is automatically released when rm-pad exits or the SSH connection drops — no reboot or manual cleanup needed. Use `--no-grab-input` to disable.
 - Works over both wifi and USB
@@ -145,6 +146,8 @@ You can also use environment variables:
 - **no_palm_rejection**: Disable palm rejection
 - **palm_grace_ms**: Palm rejection grace period in milliseconds (default: 500)
 - **orientation**: Screen orientation - `portrait`, `landscape-right` (default), `landscape-left`, or `inverted`
+- **tilt_correction**: Cancel the tilt-induced hover-vs-contact pen offset - `off` (default), `tilt`, or `tilt-distance` (ramps the correction off as the pen lifts away)
+- **tilt_correction_gain**: Correction strength, i.e. the effective coil-to-nib lever length in pen digitizer units (default: `1.0`, off). Tune empirically; use a negative value to flip direction
 - **screen**: Screen(s) the pen area is fitted into, by index or name (run `rm-pad screens` to list them). Accepts a list — e.g. `screen = ["HDMI-1", "DP-1"]`, or repeat `--screen` on the command line — and the fit target is the combined bounding box of those screens. Empty (the default) means the whole desktop. Required whenever `fit` is anything other than `fill`
 - **fit**: How the pen area maps onto the selected screen(s) - `fill` (stretch, ignoring aspect ratio; default), `contain` (preserve the tablet's aspect ratio, letterboxed so the pen can't reach two edges), or `cover` (preserve aspect ratio and cover the whole target, cropping the tablet's edges). A non-`fill` fit requires at least one `screen`
 

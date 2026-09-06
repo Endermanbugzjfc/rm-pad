@@ -9,6 +9,7 @@ use crate::device::DeviceProfile;
 use crate::display::{AspectRatio, Resolution};
 use crate::fit::FitMode;
 use crate::orientation::Orientation;
+use crate::tilt::TiltCorrectionMode;
 
 /// Authentication method for SSH connection.
 #[derive(Clone)]
@@ -31,6 +32,8 @@ pub struct Config {
     pub no_palm_rejection: bool,
     pub palm_grace_ms: u64,
     pub orientation: Orientation,
+    pub tilt_correction: TiltCorrectionMode,
+    pub tilt_correction_gain: f64,
     pub fit: FitMode,
     pub aspect_ratio: Option<AspectRatio>,
     pub resolution: Option<Resolution>,
@@ -71,6 +74,11 @@ impl Config {
                 .or(file_config.palm_grace_ms)
                 .unwrap_or(500),
             orientation: cli.orientation.unwrap_or(file_config.orientation),
+            tilt_correction: cli.tilt_correction.unwrap_or(file_config.tilt_correction),
+            tilt_correction_gain: cli
+                .tilt_correction_gain
+                .or(file_config.tilt_correction_gain)
+                .unwrap_or(1.0),
             fit: cli.fit.unwrap_or(file_config.fit),
             aspect_ratio: if let Some(ratio) = cli.aspect_ratio {
                 Some(ratio)

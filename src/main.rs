@@ -9,6 +9,7 @@ mod orientation;
 mod palm;
 mod pen_map;
 mod ssh;
+mod tilt;
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
