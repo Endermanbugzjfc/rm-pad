@@ -135,7 +135,7 @@ pub fn resolve(fit: FitMode, size_data: Option<SizeData>) -> Option<FitMap> {
     if fit == FitMode::Fill {
         return None;
     }
-    let size_data = size_data.expect("input should be guard by config mod");
+    let size_data = size_data.expect("non-fill fit should be guarded by config validation");
 
     Some(FitMap {
         fit,

@@ -59,9 +59,9 @@ fn resolve_pen_inputs_maps(config: &Config) -> Vec<Box<dyn PenInputMap>> {
     let mut maps: Vec<Box<dyn PenInputMap>> = Vec::new();
 
     let size_data = config.aspect_ratio
-        .map(|a| SizeData::AspectRatio(a))
+        .map(SizeData::AspectRatio)
         .or(config.resolution
-            .map(|r| SizeData::Resolution(r)));
+            .map(SizeData::Resolution));
     if let Some(fit_map) = fit::resolve(config.fit, size_data) {
         maps.push(Box::new(fit_map));
     }

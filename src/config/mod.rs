@@ -108,6 +108,11 @@ impl Config {
         if !self.run_pen() && !self.run_touch() {
             return Err("No input device enabled");
         }
+        // Aspect ratio and resolution describe the same target two ways; clap
+        // rejects both on the CLI, but the file config can still set both.
+        if self.aspect_ratio.is_some() && self.resolution.is_some() {
+            return Err("Cannot set both aspect_ratio and resolution");
+        }
         // Fit warps the pen into a given bounding box, so a
         // non-fill fit needs --aspect-ratio or --resolution
         if self.fit != FitMode::Fill && self.aspect_ratio.is_none() && self.resolution.is_none() {
