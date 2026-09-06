@@ -1,6 +1,7 @@
 mod config;
 mod device;
 mod dump;
+mod eraser;
 mod grab;
 mod input;
 mod orientation;
@@ -77,13 +78,14 @@ fn log_startup_info(config: &Config) {
     };
 
     log::info!(
-        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}",
+        "Starting rm-pad: host={}, pen={}, touch={}, palm_rejection={}, grab_input={}, orientation={}, eraser={}",
         config.host,
         if config.run_pen() { &config.pen_device } else { "off" },
         if config.run_touch() { &config.touch_device } else { "off" },
         palm_info,
         config.grab_input,
-        config.orientation
+        config.orientation,
+        config.eraser_action
     );
 }
 

@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
+use crate::eraser::EraserAction;
 use crate::orientation::Orientation;
 
 #[derive(Parser)]
@@ -58,6 +59,10 @@ pub struct Cli {
     /// Screen orientation (portrait, landscape-right, landscape-left, inverted)
     #[arg(long, value_parser = clap::value_parser!(Orientation))]
     pub orientation: Option<Orientation>,
+
+    /// Eraser behaviour (none, left-click, middle-click, right-click, touchpad)
+    #[arg(long, value_parser = clap::value_parser!(EraserAction))]
+    pub eraser_action: Option<EraserAction>,
 
     /// Path to config file
     #[arg(long, env = "RMPAD_CONFIG")]

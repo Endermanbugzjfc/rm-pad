@@ -14,6 +14,9 @@ pub const ABS_MT_POSITION_Y: u16 = 0x36;
 pub const ABS_MT_TRACKING_ID: u16 = 0x39;
 pub const ABS_PRESSURE: u16 = 0x18;
 
+/// Key code emitted when the stylus is flipped to its eraser end.
+pub const BTN_TOOL_RUBBER: u16 = 0x141;
+
 /// Parse a Linux input_event from raw bytes (32-bit or 64-bit format).
 pub fn parse_input_event(buf: &[u8]) -> Option<InputEvent> {
     match buf.len() {

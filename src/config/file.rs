@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
+use crate::eraser::EraserAction;
 use crate::orientation::Orientation;
 
 const DEFAULT_HOST: &str = "10.11.99.1";
@@ -25,6 +26,8 @@ pub struct FileConfig {
     pub palm_grace_ms: Option<u64>,
     #[serde(default)]
     pub orientation: Orientation,
+    #[serde(default)]
+    pub eraser_action: EraserAction,
 }
 
 impl Default for FileConfig {
@@ -41,6 +44,7 @@ impl Default for FileConfig {
             no_palm_rejection: false,
             palm_grace_ms: None,
             orientation: Orientation::default(),
+            eraser_action: EraserAction::default(),
         }
     }
 }
