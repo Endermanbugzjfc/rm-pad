@@ -30,7 +30,7 @@ use serde::Deserialize;
 use std::fmt;
 use std::str::FromStr;
 
-use crate::display::{AspectRatio, SizeData};
+use crate::display::SizeData;
 use crate::pen_map::PenInputMap;
 
 /// How the pen's active area is fitted into the target.
@@ -47,21 +47,6 @@ pub enum FitMode {
 }
 
 impl FitMode {
-    fn bound_tablet_resolution_to_aspect_ratio(&self, w: i32, h: i32, ratio: AspectRatio) -> (i64, i64) {
-        let mut w = w as i64;
-        let mut h = h as i64;
-        let proportion = (w as f32 / h as f32) / (ratio.get_fraction());
-
-        let (longest, shortest) = if w > h { (&mut w, &mut h) } else { (&mut h, &mut w) };
-        match self {
-            Self::Fill => {},
-            Self::Contain => *longest = (*longest as f32 * proportion) as i64,
-            Self::Cover => *shortest = (*shortest as f32 * proportion) as i64,
-        };
-
-        (w, h)
-    }
-
     /// Warp a pen point in `0..=in_*` space so a downstream linear stretch onto
     /// a target of aspect `target_w:target_h` produces this fit mode.
     ///
@@ -120,18 +105,13 @@ pub struct FitMap {
 
 impl PenInputMap for FitMap {
     fn map(&self, x: i32, y: i32, in_x_max: i32, in_y_max: i32) -> (i32, i32) {
-        let (target_w, target_h) = match self.size_data {
-            SizeData::AspectRatio(ratio) => self.fit.bound_tablet_resolution_to_aspect_ratio(in_x_max, in_y_max, ratio),
-            SizeData::Resolution(res) => (res.get_width() as i64, res.get_height() as i64),
-        };
-
         let (ox, oy) = self.fit.warp(
             x as i64,
             y as i64,
             in_x_max as i64,
             in_y_max as i64,
-            target_w,
-            target_h,
+            self.size_data.get_width() as i64,
+            self.size_data.get_height() as i64,
         );
         (ox as i32, oy as i32)
     }
@@ -155,7 +135,7 @@ pub fn resolve(fit: FitMode, size_data: Option<SizeData>) -> Option<FitMap> {
     if fit == FitMode::Fill {
         return None;
     }
-    let size_data = size_data.expect("either is Some");
+    let size_data = size_data.expect("input should be guard by config mod");
 
     Some(FitMap {
         fit,

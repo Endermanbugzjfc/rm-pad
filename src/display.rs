@@ -9,11 +9,27 @@ pub enum SizeData {
     Resolution(Resolution),
 }
 
+impl SizeData {
+    pub fn get_width(&self) -> u32 {
+        match *self {
+            Self::AspectRatio(ratio) => ratio.get_width(),
+            Self::Resolution(res) => res.get_width(),
+        }
+    }
+
+    pub fn get_height(&self) -> u32 {
+        match *self {
+            Self::AspectRatio(ratio) => ratio.get_height(),
+            Self::Resolution(res) => res.get_height(),
+        }
+    }
+}
+
 impl fmt::Display for SizeData {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AspectRatio(ratio) => write!(f, "{}:{}", ratio.0, ratio.1),
-            Self::Resolution(res) => write!(f, "{}x{}", res.0, res.1),
+            Self::AspectRatio(ratio) => ratio.fmt(f),
+            Self::Resolution(res) => res.fmt(f),
         }
     }
 }
@@ -34,10 +50,6 @@ impl AspectRatio {
 
     pub fn get_height(&self) -> u32 {
         self.1
-    }
-
-    pub fn get_fraction(&self) -> f32 {
-        self.get_width() as f32 / self.get_height() as f32
     }
 }
 
@@ -89,7 +101,7 @@ impl Resolution {
 
 impl fmt::Display for Resolution {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}:{}", self.0, self.1)
+        write!(f, "{}x{}", self.0, self.1)
     }
 }
 
@@ -129,6 +141,7 @@ fn match_two_non_zero_u32(input: &str, delimiter: char) -> Option<(u32, u32)> {
     None
 }
 
+/// Finds the highest common factor (also knowns as the greatest common divisor).
 fn find_hcf<T>(mut a: T, mut b: T) -> T
 where
     T: PartialEq + From<u8> + Copy + std::ops::Rem<Output = T>

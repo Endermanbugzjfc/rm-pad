@@ -13,4 +13,4 @@ host = "10.11.99.1"
 # fit = "fill"        # pen-to-screen mapping: "fill" (stretch, default),
                       # "contain" (keep aspect, letterboxed), or "cover"
                       # (keep aspect, edges cropped). Anything but "fill"
-                      # requires "aspect_ratio".
+                      # requires "aspect_ratio" or "resolution".
