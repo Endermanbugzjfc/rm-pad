@@ -150,8 +150,6 @@ You can also use environment variables:
 
 > **Why not just configure this in the compositor?** A compositor-level tablet mapping (e.g. Hyprland's) is only honored by programs that respect it. Some applications — osu!lazer is a notable example — grab the tablet and do their own coordinate handling, so a system-level aspect-ratio correction never reaches them. rm-pad instead applies the fit as a warp on the virtual input device itself, before any program sees it, so the same aspect-ratio behavior holds consistently everywhere rather than only in well-behaved apps.
 
-> **Note:** `contain`/`cover` read monitor geometry via [display-info](https://crates.io/crates/display-info) (applying each display's `scale_factor`) and rely on the compositor mapping an absolute tablet across the whole logical desktop (as Hyprland/wlroots do). `fill` needs neither and reproduces the historical behavior exactly.
-
 All options can also be set via command-line flags. Run `rm-pad --help` for details.
 
 ## Usage
