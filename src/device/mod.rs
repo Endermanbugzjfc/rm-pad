@@ -1,8 +1,6 @@
 mod rm2;
 mod rmpp;
 
-use std::io::Read;
-
 pub use rm2::RM2;
 pub use rmpp::RMPP;
 
@@ -40,30 +38,16 @@ impl DeviceProfile {
         &RM2
     }
 
-    /// Detect device via SSH connection.
-    /// 
-    /// Reads the device model from /proc/device-tree/model on the remote device.
-    /// Returns an error if the model cannot be detected or is unsupported.
-    pub fn detect_via_ssh(session: &ssh2::Session) -> Result<&'static Self, Box<dyn std::error::Error + Send + Sync>> {
-        let mut channel = session.channel_session()?;
-        channel.exec("cat /proc/device-tree/model")?;
-
-        let mut output = String::new();
-        channel.read_to_string(&mut output)?;
-        channel.close()?;
-        channel.wait_close()?;
-
-        let status = channel.exit_status()?;
-        if status != 0 {
-            return Err(format!("Failed to read device model (exit status {})", status).into());
-        }
-
-        let model = output.trim();
+    /// Resolve a `/proc/device-tree/model` string to a device profile.
+    ///
+    /// Returns an error if the model is empty or unsupported.
+    pub fn from_model(model: &str) -> Result<&'static Self, String> {
+        let model = model.trim_end_matches('\0').trim();
         if model.is_empty() {
             return Err("Device model is empty".into());
         }
 
-        log::debug!("Detected remote device model: {}", model);
+        log::debug!("Detected device model: {}", model);
 
         // Check for rMPP first (more specific)
         if model.contains("reMarkable Ferrari") {
@@ -77,6 +61,30 @@ impl DeviceProfile {
             return Ok(&RM2);
         }
 
-        Err(format!("Unsupported device model: '{}'", model).into())
+        Err(format!("Unsupported device model: '{}'", model))
+    }
+
+    /// Detect device via SSH connection.
+    ///
+    /// Reads the device model from /proc/device-tree/model on the remote device.
+    /// Returns an error if the model cannot be detected or is unsupported.
+    #[cfg(feature = "host")]
+    pub fn detect_via_ssh(session: &ssh2::Session) -> Result<&'static Self, Box<dyn std::error::Error + Send + Sync>> {
+        use std::io::Read;
+
+        let mut channel = session.channel_session()?;
+        channel.exec("cat /proc/device-tree/model")?;
+
+        let mut output = String::new();
+        channel.read_to_string(&mut output)?;
+        channel.close()?;
+        channel.wait_close()?;
+
+        let status = channel.exit_status()?;
+        if status != 0 {
+            return Err(format!("Failed to read device model (exit status {})", status).into());
+        }
+
+        Ok(Self::from_model(&output)?)
     }
 }

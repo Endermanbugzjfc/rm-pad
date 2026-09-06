@@ -5,11 +5,11 @@ pub use cli::{Cli, Command};
 
 use std::path::PathBuf;
 
-use crate::device::DeviceProfile;
-use crate::display::{AspectRatio, Resolution};
-use crate::fit::FitMode;
-use crate::orientation::Orientation;
-use crate::tilt::TiltCorrectionMode;
+use rm_pad::device::DeviceProfile;
+use rm_pad::display::{AspectRatio, Resolution};
+use rm_pad::fit::FitMode;
+use rm_pad::orientation::Orientation;
+use rm_pad::tilt::TiltCorrectionMode;
 
 /// Authentication method for SSH connection.
 #[derive(Clone)]

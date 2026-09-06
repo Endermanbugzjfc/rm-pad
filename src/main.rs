@@ -1,15 +1,8 @@
 mod config;
-mod device;
-mod display;
 mod dump;
-mod fit;
 mod grab;
 mod input;
-mod orientation;
-mod palm;
-mod pen_map;
 mod ssh;
-mod tilt;
 
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -19,8 +12,8 @@ use std::time::Duration;
 use clap::Parser;
 
 use config::{Cli, Command, Config};
-use device::DeviceProfile;
-use palm::{PalmState, SharedPalmState};
+use rm_pad::device::DeviceProfile;
+use rm_pad::palm::{PalmState, SharedPalmState};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 

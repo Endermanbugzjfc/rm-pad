@@ -6,9 +6,9 @@ use evdevil::uinput::{AbsSetup, UinputDevice};
 use evdevil::{AbsInfo, InputProp, Slot};
 
 use crate::config::Config;
-use crate::device::DeviceProfile;
-use crate::orientation::Orientation;
-use crate::palm::SharedPalmState;
+use rm_pad::device::DeviceProfile;
+use rm_pad::orientation::Orientation;
+use rm_pad::palm::SharedPalmState;
 use crate::ssh;
 
 use super::event::{

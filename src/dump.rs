@@ -1,7 +1,7 @@
 use std::io::Read;
 
 use crate::config::Config;
-use crate::device::DeviceProfile;
+use rm_pad::device::DeviceProfile;
 use crate::input::parse_input_event;
 use crate::ssh;
 

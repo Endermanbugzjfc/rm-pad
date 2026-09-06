@@ -1,10 +1,10 @@
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
-use crate::display::{AspectRatio, Resolution};
-use crate::fit::FitMode;
-use crate::orientation::Orientation;
-use crate::tilt::TiltCorrectionMode;
+use rm_pad::display::{AspectRatio, Resolution};
+use rm_pad::fit::FitMode;
+use rm_pad::orientation::Orientation;
+use rm_pad::tilt::TiltCorrectionMode;
 
 const DEFAULT_HOST: &str = "10.11.99.1";
 

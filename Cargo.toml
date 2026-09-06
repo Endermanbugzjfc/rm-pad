@@ -3,13 +3,35 @@ name = "rm-pad"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "rm_pad"
+
+[[bin]]
+name = "rm-pad"
+path = "src/main.rs"
+required-features = ["host"]
+
+[features]
+default = ["host"]
+# Host-side forwarding binary: SSH transport, uinput output, CLI. The library
+# (transform pipeline, device profiles) builds without it for on-device use.
+host = [
+    "dep:clap",
+    "dep:env_logger",
+    "dep:evdevil",
+    "dep:sha2",
+    "dep:socket2",
+    "dep:ssh2",
+    "dep:toml",
+]
+
 [dependencies]
-clap = { version = "4", features = ["derive", "env"] }
-env_logger = "0.11"
-evdevil = "0.4.0"
+clap = { version = "4", features = ["derive", "env"], optional = true }
+env_logger = { version = "0.11", optional = true }
+evdevil = { version = "0.4.0", optional = true }
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
-sha2 = "0.10"
-socket2 = { version = "0.5", features = ["all"] }
-ssh2 = "0.9.5"
-toml = "0.8"
+sha2 = { version = "0.10", optional = true }
+socket2 = { version = "0.5", features = ["all"], optional = true }
+ssh2 = { version = "0.9.5", optional = true }
+toml = { version = "0.8", optional = true }

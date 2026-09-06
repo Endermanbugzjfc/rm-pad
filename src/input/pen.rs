@@ -6,13 +6,13 @@ use evdevil::uinput::{AbsSetup, UinputDevice};
 use evdevil::{AbsInfo, Bus, InputId, InputProp};
 
 use crate::config::Config;
-use crate::device::DeviceProfile;
-use crate::display::SizeData;
-use crate::fit;
-use crate::palm::SharedPalmState;
-use crate::pen_map::{PenInputMap, PenInputPipeline};
+use rm_pad::device::DeviceProfile;
+use rm_pad::display::SizeData;
+use rm_pad::fit;
+use rm_pad::palm::SharedPalmState;
+use rm_pad::pen_map::{PenInputMap, PenInputPipeline};
 use crate::ssh;
-use crate::tilt;
+use rm_pad::tilt;
 
 use super::event::{key_event, parse_input_event, ABS_PRESSURE, EV_ABS, EV_SYN, SYN_REPORT};
 

@@ -13,6 +13,12 @@ use std::process::Command;
 ///   2. Common musl cross-compiler names
 ///   3. Common glibc cross-compiler names
 fn main() {
+    // The helper is only uploaded by the host binary; library-only builds
+    // (feature `host` disabled) need no ARM cross-compiler.
+    if env::var_os("CARGO_FEATURE_HOST").is_none() {
+        return;
+    }
+
     println!("cargo:rerun-if-changed=helper/evgrab.c");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
